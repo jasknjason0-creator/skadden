@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SK Exchange — Data Room</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!--
+  ========================================================================
+  SK EXCHANGE — PROTOTYPE CLIQUABLE (fausses données, tout en mémoire)
+  ------------------------------------------------------------------------
+  Objectif : valider le FONCTIONNEMENT avant de coder le vrai back-end.
+  Tout est simulé côté navigateur — rien n'est envoyé ni enregistré.
+
+  PERSONNALISATION : modifie le bloc CONFIG ci-dessous (nom, logo, couleur…).
+  ========================================================================
+-->
+<script>
+  const CONFIG = {
+    nom:          "SK Exchange",
+    initiales:    "SK",
+    baseline:     "Secure Data Room",
+    couleur:      "#EE362B",
+    couleurClair: "#F5584E",
+    operation:    "",
+    moi:          { nom:"Robert Chaplin", initiales:"RC", role:"Administrator", niveau:"Admin", email:"robert.chaplin@sk-exchange.com" },
+  };
+</script>
+<style>
+  :root{
+    --orange:#EE362B;--orange-clair:#F5584E;
+    --bg:#0d1017;--bg-2:#141924;--bg-3:#1b2231;--line:#252d3d;
+    --txt:#e7ebf3;--txt-2:#9aa6bd;--txt-3:#5f6b82;
+    --ok:#3ecf8e;--blue:#6096ff;
+    --radius:14px;--shadow:0 20px 50px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased;line-height:1.5}
+  button{font-family:inherit;cursor:pointer;border:none}
+  input,select,textarea{font-family:inherit}
+
+  .logo{display:flex;align-items:center;gap:11px;user-select:none}
+  .logo .mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--orange),var(--orange-clair));display:grid;place-items:center;font-weight:800;font-size:15px;color:#ffffff;box-shadow:0 6px 18px rgba(238,54,43,.35)}
+  .logo .txt{font-weight:700;font-size:17px;letter-spacing:-.2px}
+  .logo .txt small{display:block;font-size:10.5px;font-weight:600;color:var(--txt-3);letter-spacing:1.5px;text-transform:uppercase}
+
+  /* LOGIN */
+  #login,#invite{min-height:100%;display:grid;grid-template-columns:1.1fr .9fr}
+  .login-hero{position:relative;padding:56px 60px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;border-right:1px solid var(--line);
+    background:
+      radial-gradient(1200px 520px at 80% -10%,rgba(238,54,43,.22),transparent 60%),
+      radial-gradient(760px 520px at -5% 110%,rgba(238,54,43,.12),transparent 55%),
+      linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px) 0 0/44px 44px,
+      linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px) 0 0/44px 44px,
+      var(--bg-2);}
+  .login-hero > *{position:relative;z-index:2}
+  .hero-deco{position:absolute;right:-40px;bottom:-40px;width:min(46%,420px);height:auto;color:var(--orange);opacity:.10;z-index:1;pointer-events:none}
+  .login-hero h1{font-size:38px;line-height:1.12;letter-spacing:-1px;margin:0 0 18px;max-width:15ch}
+  .login-hero h1 span{color:var(--orange)}
+  .login-hero p{color:var(--txt-2);max-width:44ch;font-size:15px}
+  .hero-badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .badge{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--txt-2);background:var(--bg-3);border:1px solid var(--line);padding:7px 12px;border-radius:99px}
+  .badge b{color:var(--txt)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(62,207,142,.15)}
+  .login-panel{display:grid;place-items:center;padding:40px}
+  .login-card{width:100%;max-width:380px}
+  .login-card h2{font-size:22px;letter-spacing:-.3px;margin:26px 0 6px}
+  .login-card .sub{color:var(--txt-2);font-size:14px;margin-bottom:26px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--txt-3);margin-bottom:7px}
+  .field input,.field select,.field textarea{width:100%;padding:13px 14px;border-radius:11px;font-size:14.5px;background:var(--bg-2);border:1px solid var(--line);color:var(--txt);outline:none;transition:.15s}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(238,54,43,.15)}
+  .btn-primary{width:100%;padding:14px;border-radius:11px;font-size:15px;font-weight:700;color:#ffffff;margin-top:6px;background:linear-gradient(135deg,var(--orange),var(--orange-clair));box-shadow:0 8px 22px rgba(238,54,43,.30);transition:transform .12s,box-shadow .12s}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(238,54,43,.42)}
+  .login-links{display:flex;justify-content:space-between;margin-top:18px;font-size:13px;color:var(--txt-2)}
+  .login-links a{color:var(--orange);text-decoration:none;font-weight:600}
+  .login-note{margin-top:26px;font-size:11.5px;color:var(--txt-3);line-height:1.6;border-top:1px solid var(--line);padding-top:16px}
+
+  /* APP */
+  #app{display:none;height:100vh;grid-template-columns:250px 1fr;grid-template-rows:60px 1fr}
+  .topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:var(--bg-2);border-bottom:1px solid var(--line)}
+  .topbar .op{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--txt-2)}
+  .topbar .op b{color:var(--txt)}
+  .pill{font-size:11px;font-weight:700;color:var(--orange);background:rgba(238,54,43,.12);padding:4px 10px;border-radius:99px;letter-spacing:.5px}
+  .topbar-right{display:flex;align-items:center;gap:14px}
+  /* Data-room switcher */
+  .room-switcher{position:relative}
+  .room-btn{display:inline-flex;align-items:center;gap:9px;padding:7px 12px;border-radius:10px;background:var(--bg-3);border:1px solid var(--line);color:var(--txt);font-size:13px;font-weight:600;cursor:pointer;max-width:260px}
+  .room-btn:hover{border-color:var(--orange)}
+  .room-btn .rs-ico{width:15px;height:15px;flex:none;color:var(--orange)}
+  .room-btn .rs-ico svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .room-btn .rs-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .room-btn .rs-caret{color:var(--txt-3);font-size:10px}
+  .room-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:10px;background:rgba(238,54,43,.10);color:var(--txt);font-size:13px;font-weight:600}
+  .room-menu{position:absolute;left:0;top:44px;min-width:260px;background:var(--bg-3);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:none;z-index:60;max-height:60vh;overflow:auto}
+  .room-menu.open{display:block}
+  .room-menu .rm-head{padding:8px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--txt-3)}
+  .room-menu .rm-item{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:10px 12px;border-radius:8px;background:transparent;color:var(--txt);font-size:13.5px;font-weight:600;cursor:pointer}
+  .room-menu .rm-item:hover{background:var(--bg-2)}
+  .room-menu .rm-item.sel{color:var(--orange)}
+  .room-menu .rm-item .chk{margin-left:auto;color:var(--orange)}
+  .room-menu .rm-sep{height:1px;background:var(--line);margin:6px 4px}
+  .room-menu .rm-new{color:var(--orange)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--orange-clair));display:grid;place-items:center;font-size:12px;font-weight:800;color:#ffffff}
+  .usermenu{position:relative}
+  .umenu{position:absolute;right:0;top:44px;min-width:220px;background:var(--bg-3);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:none;z-index:60}
+  .umenu.open{display:block}
+  .umenu-head{padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:4px}
+  .umenu-head b{display:block;font-size:13.5px}
+  .umenu-head span{font-size:12px;color:var(--txt-3)}
+  .umenu-item{width:100%;text-align:left;padding:10px 12px;border-radius:8px;background:transparent;color:var(--txt);font-size:13.5px;font-weight:600}
+  .umenu-item:hover{background:var(--bg-2);color:var(--orange)}
+  .icon-btn{width:34px;height:34px;border-radius:9px;background:transparent;color:var(--txt-2);display:grid;place-items:center;font-size:16px}
+  .icon-btn:hover{background:var(--bg-3);color:var(--txt)}
+  .sidebar{background:var(--bg-2);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:3px}
+  .nav-label{font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt-3);margin:16px 12px 8px}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--txt-2);font-size:14px;font-weight:500;background:transparent;width:100%;text-align:left;transition:.12s}
+  .nav-item .ico{width:18px;height:18px;display:grid;place-items:center;flex:none}
+  .nav-item .ico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .ic{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;display:inline-block;flex:none}
+  .act .ic{width:15px;height:15px;vertical-align:middle}
+  .tag .ic{width:12px;height:12px;vertical-align:-2px;margin-right:2px}
+  .nav-item .count{margin-left:auto;font-size:11px;font-weight:700;background:var(--bg-3);color:var(--txt-2);padding:2px 8px;border-radius:99px}
+  .nav-item:hover{background:var(--bg-3);color:var(--txt)}
+  .nav-item.active{background:rgba(238,54,43,.13);color:var(--orange)}
+  .nav-item.active .count{background:var(--orange);color:#ffffff}
+  .sidebar .spacer{flex:1}
+  .side-foot{font-size:11px;color:var(--txt-3);padding:12px;border-top:1px solid var(--line)}
+  .main{overflow-y:auto;padding:28px 34px}
+  .view{display:none}
+  .view.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .view-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:14px}
+  .view-head h2{font-size:23px;letter-spacing:-.4px}
+  .view-head p{color:var(--txt-2);font-size:13.5px;margin-top:3px}
+  .btn-ghost{padding:9px 15px;border-radius:10px;font-size:13px;font-weight:600;background:var(--bg-3);color:var(--txt);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--orange);color:var(--orange)}
+  .btn-orange{padding:9px 15px;border-radius:10px;font-size:13px;font-weight:700;color:#ffffff;background:linear-gradient(135deg,var(--orange),var(--orange-clair))}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+  .stat{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+  .stat .k{font-size:12px;color:var(--txt-3);font-weight:600}
+  .stat .v{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-top:6px}
+  .stat .v small{font-size:13px;color:var(--ok);font-weight:700;margin-left:6px}
+  .folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:26px}
+  .folder{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:18px;transition:.15s;cursor:pointer}
+  .folder:hover{border-color:var(--orange);transform:translateY(-2px)}
+  .folder.sel{border-color:var(--orange);background:rgba(238,54,43,.07)}
+  .folder .fi{width:40px;height:40px;border-radius:10px;background:rgba(238,54,43,.12);color:var(--orange);display:grid;place-items:center;font-size:19px;margin-bottom:12px}
+  .folder h4{font-size:14.5px;margin-bottom:3px}
+  .folder span{font-size:12px;color:var(--txt-3)}
+  .panel{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .panel-h{padding:14px 18px;border-bottom:1px solid var(--line);font-size:13px;font-weight:700;color:var(--txt-2);display:flex;justify-content:space-between;align-items:center}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:13px 18px;font-size:13.5px;border-bottom:1px solid var(--line)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--txt-3);font-weight:700}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr.clic{cursor:pointer}
+  tbody tr.clic:hover{background:var(--bg-3)}
+  .doc{display:flex;align-items:center;gap:11px;font-weight:600}
+  .doc .di{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+  .di.pdf{background:rgba(238,54,43,.14);color:var(--orange)}
+  .di.xls{background:rgba(62,207,142,.14);color:var(--ok)}
+  .di.doc{background:rgba(96,150,255,.14);color:var(--blue)}
+  .di.round{border-radius:50%}
+  .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+  .tag.on{background:rgba(62,207,142,.14);color:var(--ok)}
+  .tag.off{background:var(--bg-3);color:var(--txt-3)}
+  .tag.view{background:rgba(238,54,43,.14);color:var(--orange)}
+  .tag.blue{background:rgba(96,150,255,.14);color:var(--blue)}
+  .muted{color:var(--txt-3);font-size:12.5px}
+  .hint{margin-top:12px;font-size:12.5px;color:var(--txt-3)}
+
+  .msg{display:flex;gap:14px;padding:15px 18px;border-bottom:1px solid var(--line);cursor:pointer}
+  .msg:hover{background:var(--bg-3)}
+  .msg .av{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;font-size:13px;color:#ffffff;background:linear-gradient(135deg,var(--orange),var(--orange-clair))}
+  .msg .bd{flex:1;min-width:0}
+  .msg .rowtop{display:flex;justify-content:space-between;gap:10px}
+  .msg .from{font-weight:700;font-size:14px}
+  .msg .time{font-size:12px;color:var(--txt-3);flex:none}
+  .msg .subj{font-size:13.5px;margin-top:2px}
+  .msg .prev{font-size:13px;color:var(--txt-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .msg.unread .from::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--orange);margin-right:7px;vertical-align:middle}
+
+  /* MODALS */
+  .overlay{position:fixed;inset:0;background:rgba(4,7,12,.72);backdrop-filter:blur(3px);display:none;place-items:center;z-index:50;padding:24px}
+  .overlay.open{display:grid;animation:fade .2s ease}
+  .modal{background:var(--bg-2);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:100%;max-width:460px;overflow:hidden;max-height:92vh;display:flex;flex-direction:column}
+  .modal.wide{max-width:820px}
+  .modal-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);flex:none}
+  .modal-h h3{font-size:16px}
+  .modal-b{padding:20px;overflow-y:auto}
+  .modal-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;flex:none}
+  .x{width:32px;height:32px;border-radius:8px;background:transparent;color:var(--txt-2);font-size:18px;display:grid;place-items:center}
+  .x:hover{background:var(--bg-3);color:var(--txt)}
+
+  .reader{position:relative;height:52vh;max-height:460px;background:#f4f5f7;border-radius:10px;overflow:hidden;margin-bottom:2px;user-select:none}
+  .modal.full{max-width:96vw;width:96vw;height:95vh}
+  .modal.full .modal-b{flex:1;display:flex;flex-direction:column}
+  .modal.full .reader{flex:1;height:auto;max-height:none}
+  .reader .page{position:absolute;inset:22px;background:#fff;border-radius:4px;box-shadow:0 4px 18px rgba(0,0,0,.14);padding:34px;color:#2a2f3a;overflow:hidden}
+  .reader .page h4{color:#111;font-size:15px;margin-bottom:14px;border-bottom:2px solid var(--orange);padding-bottom:8px;display:inline-block}
+  .reader .page .ln{height:9px;background:#e7e9ee;border-radius:3px;margin:9px 0}
+  .reader .page .ln.s{width:60%}.reader .page .ln.m{width:85%}
+  .watermark{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:5}
+  .watermark span{font-size:24px;font-weight:800;color:rgba(30,40,60,.10);transform:rotate(-24deg);letter-spacing:2px;text-align:center;line-height:2.2}
+  .readonly-bar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txt-3);padding:8px 2px}
+  .readonly-bar .lock{color:var(--orange);font-weight:700}
+  .sign-proof{margin-top:8px;padding:11px 14px;border-radius:10px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);color:var(--txt-2);font-size:12.5px}
+  .sign-proof b{color:var(--ok)}
+  .signed-stamp{position:absolute;bottom:34px;right:40px;z-index:6;border:2px solid var(--ok);color:var(--ok);border-radius:8px;padding:8px 14px;transform:rotate(-8deg);font-weight:800;font-size:13px;text-align:center;background:rgba(62,207,142,.08)}
+  .signed-stamp small{display:block;font-size:9px;font-weight:600;opacity:.8}
+
+  .sign-tabs{display:flex;gap:8px;margin-bottom:14px}
+  .sign-tab{flex:1;padding:9px;border-radius:9px;background:var(--bg-3);border:1px solid var(--line);color:var(--txt-2);font-size:13px;font-weight:600}
+  .sign-tab.active{border-color:var(--orange);color:var(--orange);background:rgba(238,54,43,.10)}
+  #sign-canvas{width:100%;height:130px;background:#fff;border-radius:11px;border:1.5px dashed var(--line);touch-action:none;cursor:crosshair;display:block}
+  .sign-typed{font-family:"Segoe Script","Brush Script MT",cursive;font-size:32px;color:#111;background:#fff;padding:26px;text-align:center;border:1.5px solid var(--line);border-radius:11px;min-height:82px}
+  .consent{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--txt-2);margin-top:12px}
+  .consent input{margin-top:3px;width:auto}
+  textarea{resize:vertical;min-height:90px}
+  .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(62,207,142,.5);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(62,207,142,.5)}70%{box-shadow:0 0 0 7px rgba(62,207,142,0)}100%{box-shadow:0 0 0 0 rgba(62,207,142,0)}}
+  .chip{font-size:12px;font-weight:600;background:rgba(62,207,142,.12);color:var(--ok);padding:5px 10px;border-radius:99px}
+  .chip.off{background:var(--bg-3);color:var(--txt-3)}
+  /* MAIL */
+  .mail{display:grid;grid-template-columns:210px 330px 1fr;height:calc(100vh - 200px);min-height:380px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--bg-2)}
+  /* Folders column (Outlook-style) */
+  .mbox-folders{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--bg-2)}
+  .mbox-compose{margin:14px;padding:11px;border:none;border-radius:11px;background:linear-gradient(135deg,var(--orange),var(--orange-clair));color:#fff;font-weight:700;font-size:13.5px;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
+  .mbox-flist{overflow-y:auto;min-height:0;padding:0 8px 12px}
+  .mbox-folder{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;font-size:13.5px;color:var(--txt-2);transition:.1s}
+  .mbox-folder:hover{background:var(--bg-3)}
+  .mbox-folder.sel{background:rgba(238,54,43,.10);color:var(--txt);box-shadow:inset 3px 0 0 var(--orange)}
+  .mbox-folder .fico{width:16px;height:16px;flex:none;display:grid;place-items:center}
+  .mbox-folder .fico svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .mbox-folder .flabel{flex:1}
+  .mbox-folder .fbadge{font-size:11px;font-weight:800;background:var(--orange);color:#fff;border-radius:99px;padding:1px 7px;min-width:18px;text-align:center}
+  .mbox-list{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+  .mbox-search{padding:12px;border-bottom:1px solid var(--line);flex:none}
+  .mbox-search input{width:100%;padding:9px 12px;border-radius:9px;background:var(--bg);border:1px solid var(--line);color:var(--txt);outline:none;font-size:13px;box-sizing:border-box}
+  .mbox-search input:focus{border-color:var(--orange)}
+  .mbox-items{overflow-y:auto;min-height:0;flex:1}
+  .mail-list{border-right:1px solid var(--line);overflow-y:auto}
+  .mail-item{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:.1s}
+  .mail-item:hover{background:var(--bg-3)}
+  .mail-item.sel{background:rgba(238,54,43,.09);box-shadow:inset 3px 0 0 var(--orange)}
+  .mail-item .av{width:36px;height:36px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;font-size:12px;color:#ffffff;background:linear-gradient(135deg,var(--orange),var(--orange-clair))}
+  .mail-item .mi{flex:1;min-width:0}
+  .mail-item .r1{display:flex;justify-content:space-between;gap:8px}
+  .mail-item .nm{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mail-item .tm{font-size:11px;color:var(--txt-3);flex:none}
+  .mail-item .su{font-size:13px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mail-item .pv{font-size:12px;color:var(--txt-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .mail-item.unread .nm::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--orange);margin-right:6px}
+  .mail-item.notif .av{background:linear-gradient(135deg,var(--ok),#71e0ab)}
+  .mail-read{display:flex;flex-direction:column;min-width:0;min-height:0}
+  .mail-empty{display:grid;place-items:center;color:var(--txt-3);font-size:13px;height:100%}
+  .read-h{padding:18px 22px;border-bottom:1px solid var(--line);flex:none}
+  .read-h h3{font-size:17px;letter-spacing:-.2px}
+  .read-meta{display:flex;align-items:center;gap:11px;margin-top:12px}
+  .read-meta .av{width:40px;height:40px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;font-size:13px;color:#ffffff;background:linear-gradient(135deg,var(--orange),var(--orange-clair))}
+  .read-meta .ln1{font-weight:700;font-size:14px}
+  .read-meta .ln2{font-size:12px;color:var(--txt-3)}
+  .compose-row{display:flex;align-items:flex-start;gap:12px;border-bottom:1px solid var(--line);padding:11px 2px}
+  .cr-label{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--txt-3);width:58px;flex:none;padding-top:5px}
+  .cr-from{font-size:13.5px;color:var(--txt);padding-top:3px}
+  .to-chip{display:inline-flex;align-items:center;gap:8px;background:var(--bg-3);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:13px;margin-bottom:6px}
+  .to-chip .rm{cursor:pointer;color:var(--txt-3);font-weight:700}
+  .to-chip .rm:hover{color:#ff6a6a}
+  #to-search,#cc-search{border:none;background:transparent;color:var(--txt);outline:none;width:100%;font-size:13.5px;padding:5px 0}
+  #to-search::placeholder,#cc-search::placeholder{color:var(--txt-3)}
+  .reci-list{position:absolute;left:70px;right:0;top:calc(100% + 2px);background:var(--bg-3);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);z-index:5;max-height:230px;overflow:auto}
+  .reci-item{display:flex;align-items:center;gap:11px;padding:10px 12px;cursor:pointer}
+  .reci-item:hover{background:var(--bg-2)}
+  .reci-item .av{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;font-size:12px;color:#fff;background:linear-gradient(135deg,var(--orange),var(--orange-clair))}
+  .reci-item .ri{flex:1;min-width:0}
+  .reci-item .ri b{font-size:13.5px;display:block}
+  .reci-item .ri span{font-size:12px;color:var(--txt-3)}
+  .reci-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--bg-2);color:var(--txt-3);letter-spacing:.5px}
+  .from-to{display:flex;flex-direction:column;gap:3px;margin-top:12px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--line);border-radius:9px;font-size:12px;color:var(--txt-2)}
+  .from-to b{color:var(--txt-3);font-weight:600}
+  .thread{flex:1;min-height:0;overflow-y:auto;padding:8px 22px 20px}
+  .email-msg{border-bottom:1px solid var(--line);padding:18px 0}
+  .email-head{display:flex;gap:11px;align-items:center;margin-bottom:12px}
+  .email-head .av{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;font-size:12px;color:#fff;background:linear-gradient(135deg,var(--orange),var(--orange-clair))}
+  .email-head .eh-txt{font-size:13.5px;line-height:1.4}
+  .email-head .eh-txt b{font-size:14px}
+  .email-body{font-size:14px;line-height:1.65;color:var(--txt);padding-left:49px;white-space:pre-wrap}
+  .email-sys{text-align:center;font-size:12.5px;color:var(--txt-2);background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.25);border-radius:10px;padding:12px;margin:14px 0}
+  .bubble{max-width:78%;padding:12px 15px;border-radius:14px;font-size:13.5px;line-height:1.55;background:var(--bg-3);border:1px solid var(--line)}
+  .bubble .who{font-size:11px;color:var(--txt-3);margin-bottom:5px;font-weight:600}
+  .bubble.me{align-self:flex-end;background:rgba(238,54,43,.12);border-color:rgba(238,54,43,.3)}
+  .bubble.sys{align-self:center;max-width:100%;text-align:center;background:rgba(62,207,142,.08);border-color:rgba(62,207,142,.25);color:var(--txt-2);font-size:12.5px}
+  .reply{border-top:1px solid var(--line);padding:14px 18px;display:flex;gap:10px;align-items:flex-end;flex:none}
+  .reply textarea{flex:1;min-height:44px;max-height:120px;padding:11px 13px;border-radius:11px;background:var(--bg);border:1px solid var(--line);color:var(--txt);outline:none;font-size:13.5px}
+  .reply textarea:focus{border-color:var(--orange)}
+  .reply .send{width:44px;height:44px;border-radius:11px;flex:none;background:linear-gradient(135deg,var(--orange),var(--orange-clair));color:#ffffff;font-size:17px;font-weight:800}
+  .attach-btn{width:44px;height:44px;border-radius:11px;flex:none;background:var(--bg-3);border:1px solid var(--line);color:var(--txt-2);font-size:17px}
+  .attach-btn:hover{border-color:var(--orange);color:var(--orange)}
+  .att-row{display:flex;flex-wrap:wrap;gap:7px}
+  .att-chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;background:var(--bg-3);border:1px solid var(--line);padding:6px 10px;border-radius:9px;color:var(--txt);cursor:pointer}
+  .att-chip:hover{border-color:var(--orange)}
+  .att-chip small{color:var(--txt-3);font-weight:500}
+  /* Single-message reading pane */
+  .msg-actions{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px;border-bottom:1px solid var(--line);flex:none}
+  .msg-btn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:8px 12px;border-radius:9px;background:var(--bg-3);border:1px solid var(--line);color:var(--txt-2);cursor:pointer;transition:.1s}
+  .msg-btn:hover{border-color:var(--orange);color:var(--txt)}
+  .msg-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .msg-btn.danger:hover{border-color:#ff6a6a;color:#ff7a7a}
+  .msg-btn.primary{background:linear-gradient(135deg,var(--orange),var(--orange-clair));color:#fff;border-color:transparent}
+  .msg-tocc{display:flex;flex-direction:column;gap:4px;margin-top:10px;font-size:12.5px;color:var(--txt-2)}
+  .msg-tocc b{color:var(--txt-3);font-weight:600;margin-right:4px}
+  .mbox-empty{display:grid;place-items:center;color:var(--txt-3);font-size:13px;height:100%;text-align:center;padding:20px}
+  /* Compose CC row reuse */
+  .cc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .att-chip b{color:var(--txt-3);font-weight:700;margin-left:2px}
+  .att-chip b:hover{color:#ff6a6a}
+  .bubble .att-row{margin-top:9px}
+  @media(max-width:860px){.mail{grid-template-columns:1fr;height:auto;min-height:0}.mail-list{border-right:none;border-bottom:1px solid var(--line);max-height:280px}.reci-list{left:0}}
+  .roles-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .role-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+  .role-card .rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .role-card .rh h4{font-size:15px;display:flex;align-items:center;gap:8px}
+  .role-card .rh .cnt{font-size:11px;font-weight:700;color:var(--orange);background:rgba(238,54,43,.12);padding:3px 10px;border-radius:99px}
+  .perm{display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px;cursor:pointer;user-select:none}
+  .perm input{width:auto;margin:0}
+  .perm .sw{width:38px;height:22px;border-radius:99px;background:var(--bg-3);border:1px solid var(--line);position:relative;transition:.15s;flex:none}
+  .perm .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--txt-3);transition:.15s}
+  .perm.on .sw{background:rgba(238,54,43,.25);border-color:var(--orange)}
+  .perm.on .sw::after{left:18px;background:var(--orange)}
+  .perms-mini{background:var(--bg-3);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  .perms-mini div{font-size:13px;padding:3px 0;color:var(--txt-2)}
+  .perms-mini .yes{color:var(--txt)}
+  .perms-mini .no{color:var(--txt-3);text-decoration:line-through}
+  .up-drop{width:100%;display:flex;align-items:center;gap:12px;padding:16px;border-radius:11px;background:var(--bg-3);border:1.5px dashed var(--line);color:var(--txt-2);font-size:13.5px;font-weight:600}
+  .up-drop:hover{border-color:var(--orange);color:var(--orange)}
+  .up-drop.has{border-style:solid;border-color:var(--orange);color:var(--txt)}
+  .seg{display:inline-flex;background:var(--bg-3);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .seg-b{padding:7px 12px;border-radius:8px;font-size:12.5px;font-weight:600;background:transparent;color:var(--txt-2)}
+  .seg-b.active{background:linear-gradient(135deg,var(--orange),var(--orange-clair));color:#ffffff}
+  .act{width:32px;height:32px;border-radius:8px;background:var(--bg-3);border:1px solid var(--line);font-size:14px;display:grid;place-items:center;transition:.12s}
+  .act:hover{border-color:var(--orange)}
+  .act.danger:hover{border-color:#ff5a5a;background:rgba(255,80,80,.12)}
+  #app.mode-client #room-actions .btn-orange{display:none}
+  #app.mode-client .hint{display:none}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg-3);border:1px solid var(--line);border-left:3px solid var(--ok);color:var(--txt);padding:13px 20px;border-radius:12px;font-size:13.5px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:99}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:860px){
+    #login,#invite{grid-template-columns:1fr}.login-hero{display:none}
+    #app{grid-template-columns:1fr;grid-template-rows:56px auto 1fr}
+    .sidebar{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line);padding:8px;gap:6px}
+    .sidebar .nav-label,.sidebar .spacer,.side-foot{display:none}
+    .nav-item{white-space:nowrap;padding:9px 12px}
+    .stats{grid-template-columns:repeat(2,1fr)}.modal.wide{max-width:100%}
+    .main{padding:18px 16px}
+    .topbar{padding:0 14px}
+    .op{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login">
+  <div class="login-hero">
+    <svg class="hero-deco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.4"/><path d="M12 16.4v2"/></svg>
+    <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange<small data-base>Secure Data Room</small></div></div>
+    <div>
+      <h1>A secure environment for professional collaboration.</h1>
+      <p>A private workspace for secure communication, document sharing and controlled access.</p>
+    </div>
+    <div class="muted" style="font-size:12px">© 2026 · <span data-nom2>SK Exchange</span> · All rights reserved</div>
+  </div>
+  <div class="login-panel">
+    <div class="login-card">
+      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange</div></div>
+      <h2>Sign in to your workspace</h2>
+      <div class="sub">Access is restricted to authorized users.</div>
+      <form onsubmit="entrer(event)">
+        <div class="field"><label>Work email</label><input type="email" placeholder="first.last@company.com" autocomplete="off"></div>
+        <div class="field"><label>Password</label><input type="password" placeholder="••••••••••••"></div>
+        <button class="btn-primary" type="submit">Sign in</button>
+      </form>
+      <div class="login-links"><a href="#" onclick="return false">Request access</a><a href="#" onclick="modal('m-forgot');return false">Forgot password?</a></div>
+      <div class="login-note"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Protected access · Secure authentication · v1.1</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INVITATION (lien reçu par email) ============ -->
+<section id="invite" style="display:none">
+  <div class="login-hero">
+    <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange<small data-base>Secure Data Room</small></div></div>
+    <div>
+      <h1>You've been invited to <span data-nom2>SK Exchange</span>.</h1>
+      <p>Your access has been created by the administrator. Your email is already set — just choose a password to activate your account.</p>
+    </div>
+    <div class="muted" style="font-size:12px">© 2026 · <span data-nom2>SK Exchange</span> · All rights reserved</div>
+  </div>
+  <div class="login-panel">
+    <div class="login-card">
+      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange</div></div>
+      <h2>Create your password</h2>
+      <div class="sub">Activate your account to access the data room.</div>
+      <div class="field"><label>Your email (set by the administrator)</label><input id="inv-email" type="email" disabled></div>
+      <div class="field"><label>Create a password</label><input id="inv-pass" type="password" placeholder="Minimum 12 characters"></div>
+      <div class="field"><label>Confirm password</label><input id="inv-pass2" type="password" placeholder="Re-enter your password"></div>
+      <button class="btn-primary" onclick="acceptInvite()">Create my account</button>
+      <div class="login-note"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Your password is protected and never visible to anyone, including the administrator.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:18px">
+      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange</div></div>
+      <div id="room-switcher" class="room-switcher"></div>
+    </div>
+    <div class="topbar-right">
+      <div class="usermenu">
+        <div class="avatar" id="me-av" onclick="toggleUserMenu(event)" title="Account">SK</div>
+        <div class="umenu" id="user-menu">
+          <div class="umenu-head"><b id="um-name">Robert Chaplin</b><span id="um-email">robert.chaplin@sk-exchange.com</span></div>
+          <button class="umenu-item" onclick="sortir()" style="display:flex;align-items:center;gap:7px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v8"/><path d="M7.5 7a7 7 0 1 0 9 0"/></svg> Sign out</button>
+        </div>
+      </div>
+      <button class="btn-ghost" onclick="sortir()" style="display:flex;align-items:center;gap:7px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v8"/><path d="M7.5 7a7 7 0 1 0 9 0"/></svg> Sign out</button>
+    </div>
+  </header>
+  <aside class="sidebar">
+    <button class="nav-item active" onclick="voir('room',this)"><span class="ico"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg></span> Data Room</button>
+    <button class="nav-item" onclick="voir('inbox',this)"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span> Communications <span class="count" id="nav-msg"></span></button>
+    <button class="nav-item" id="nav-members" onclick="voir('membres',this)"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a3 3 0 0 1 0 5.5"/><path d="M18.5 20a5.5 5.5 0 0 0-3-4.9"/></svg></span> Members</button>
+    <button class="nav-item" id="nav-journal" onclick="voir('journal',this)"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/></svg></span> Activity Log</button>
+    <div class="spacer"></div>
+    <div class="side-foot">Secure workspace · Protected connection</div>
+  </aside>
+
+  <main class="main">
+    <section class="view active" id="v-room">
+      <div class="view-head">
+        <div><h2>Data Room</h2><p id="room-sub"></p></div>
+        <div style="display:flex;gap:10px" id="room-actions">
+          <button class="btn-ghost" id="btn-vue" onclick="toggleVue()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> Preview as member</button>
+          <button class="btn-orange" onclick="modal('m-upload')" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Add document</button>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="folders" id="folders"></div>
+      <div class="panel">
+        <div class="panel-h"><span id="docs-title">All documents</span> <span class="muted" style="display:inline-flex;align-items:center;gap:5px"><svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg> Read-only · download disabled</span></div>
+        <table><thead><tr><th>Document</th><th>Added by</th><th id="col-vis">Manage</th><th>Signature</th><th>Last viewed</th></tr></thead>
+        <tbody id="docs-body"></tbody></table>
+      </div>
+      <p class="hint">Click a document to open it read-only and sign it electronically.</p>
+    </section>
+
+    <section class="view" id="v-inbox">
+      <div class="view-head">
+        <div><h2>Secure Communications</h2><p>Private communications within the data room.</p></div>
+      </div>
+      <div class="mail" id="mail"></div>
+    </section>
+
+    <section class="view" id="v-membres">
+      <div class="view-head">
+        <div><h2>Access management</h2><p>Manage user access, roles and permissions.</p></div>
+        <button class="btn-orange" onclick="ouvrirMembre(-1)" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Create access</button>
+      </div>
+      <div class="panel"><table><thead><tr><th>Member</th><th>Role</th><th>Status</th><th>Last login</th><th style="text-align:right">Actions</th></tr></thead>
+      <tbody id="membres-body"></tbody></table></div>
+      <p class="hint">All access changes are recorded in the activity log.</p>
+
+      <h3 style="margin:30px 0 6px;font-size:17px;letter-spacing:-.3px">Roles & permissions</h3>
+      <p class="muted" style="margin-bottom:14px">Configure the permissions assigned to each role.</p>
+      <div class="roles-grid" id="roles-grid"></div>
+
+      <div style="margin-top:34px;border-top:1px solid var(--line);padding-top:20px">
+        <h3 style="font-size:15px;margin-bottom:6px">Data Room Administration</h3>
+        <p class="muted" style="margin-bottom:12px">Close this data room and remove all its content and access records.</p>
+        <button class="btn-ghost" style="border-color:#ff5a5a;color:#ff7a7a" onclick="modal('m-danger')">Close Data Room</button>
+      </div>
+    </section>
+
+    <section class="view" id="v-journal">
+      <div class="view-head">
+        <div><h2>Activity Log</h2><p>Record of access, document activity and signatures.</p></div>
+        <button class="btn-ghost" onclick="exportCSV()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/></svg> Export (CSV)</button>
+      </div>
+      <div id="live-strip" style="margin-bottom:18px"></div>
+      <div class="panel"><div class="panel-h">Recent activity</div><table><thead><tr><th>Member</th><th>Action</th><th>Document</th><th>When</th></tr></thead>
+      <tbody id="journal-body"></tbody></table></div>
+    </section>
+  </main>
+</div>
+
+<!-- MODAL CRÉER / MODIFIER / VOIR UN ACCÈS -->
+<div class="overlay" id="m-membre"><div class="modal">
+  <div class="modal-h"><h3 id="mb-title">Create access</h3><button class="x" onclick="fermer('m-membre')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label>Email</label><input id="mb-email" type="email" placeholder="first.last@company.com"></div>
+    <div class="field"><label>Full name</label><input id="mb-nom" type="text" placeholder="First Last"></div>
+    <div class="field"><label>Company</label><input id="mb-org" type="text" placeholder="Company name"></div>
+    <div class="field"><label>Job title</label><input id="mb-role" type="text" placeholder="e.g. Legal counsel"></div>
+    <div style="display:flex;gap:12px">
+      <div class="field" style="flex:1"><label>Role</label><select id="mb-niveau" onchange="mbPerms()"><option>User</option><option>Admin</option></select></div>
+      <div class="field" style="flex:1"><label>Status</label><select id="mb-statut"><option>Active</option><option>Pending</option><option>Suspended</option></select></div>
+    </div>
+    <div class="field"><label>Access duration</label>
+      <select id="mb-duration" onchange="mbExpHint()">
+        <option value="30">1 month</option>
+        <option value="7">1 week</option>
+        <option value="90">3 months</option>
+        <option value="180">6 months</option>
+        <option value="0">No expiry</option>
+      </select>
+      <p class="muted" id="mb-exp-hint" style="font-size:11.5px;margin-top:6px"></p>
+    </div>
+    <div class="field"><label>Permissions granted by this role</label><div id="mb-perms" class="perms-mini"></div></div>
+  </div>
+  <div class="modal-f">
+    <button class="act danger" id="mb-del" onclick="supprimerMembreModal()" style="margin-right:auto;width:auto;padding:0 12px;gap:6px;display:inline-flex;align-items:center"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg> Delete</button>
+    <button class="btn-ghost" onclick="fermer('m-membre')">Cancel</button>
+    <button class="btn-orange" id="mb-save" onclick="sauverMembre()">Create access</button>
+  </div>
+</div></div>
+
+<!-- MODAL NEW / RENAME DATA ROOM -->
+<div class="overlay" id="m-room"><div class="modal">
+  <div class="modal-h"><h3 id="room-modal-title">New data room</h3><button class="x" onclick="fermer('m-room')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label>Data room name</label><input id="room-name" type="text" placeholder="e.g. Client A — Project Atlas" onkeydown="if(event.key==='Enter')saveRoom()"></div>
+    <p class="muted" style="font-size:12.5px;line-height:1.6">Each data room is a separate, isolated space. Members you add to it only see this room's documents, members and messages.</p>
+  </div>
+  <div class="modal-f"><button class="btn-ghost" onclick="fermer('m-room')">Cancel</button><button class="btn-orange" id="room-save" onclick="saveRoom()">Create</button></div>
+</div></div>
+
+<!-- MODAL NEW MESSAGE -->
+<div class="overlay" id="m-msg"><div class="modal" style="max-width:640px">
+  <div class="modal-h"><h3 id="msg-modal-title">New message</h3><button class="x" onclick="fermer('m-msg')">✕</button></div>
+  <div class="modal-b">
+    <div class="compose-row"><span class="cr-label">From</span><span class="cr-from" id="msg-from"></span></div>
+    <div class="compose-row" style="position:relative">
+      <span class="cr-label">To</span>
+      <div style="flex:1">
+        <div id="to-chips" class="cc-chips"></div>
+        <input id="to-search" type="text" placeholder="Search a registered member…" autocomplete="off" oninput="searchReci('to')" onfocus="searchReci('to')">
+        <div id="to-results" class="reci-list" style="display:none"></div>
+      </div>
+    </div>
+    <div class="compose-row" style="position:relative">
+      <span class="cr-label">Cc</span>
+      <div style="flex:1">
+        <div id="cc-chips" class="cc-chips"></div>
+        <input id="cc-search" type="text" placeholder="Add people in copy (optional)…" autocomplete="off" oninput="searchReci('cc')" onfocus="searchReci('cc')">
+        <div id="cc-results" class="reci-list" style="display:none"></div>
+      </div>
+    </div>
+    <div class="compose-row"><span class="cr-label">Subject</span><input id="msg-subj" type="text" placeholder="Subject" style="flex:1;border:none;background:transparent;color:var(--txt);outline:none;font-size:13.5px;padding-top:3px"></div>
+    <textarea id="msg-body" placeholder="Write your message…" style="min-height:170px;border:none;margin-top:8px;background:transparent;color:var(--txt);font-size:14px;line-height:1.6;width:100%;outline:none;resize:vertical"></textarea>
+    <div id="msg-att" class="att-row" style="margin-top:6px"></div>
+  </div>
+  <div class="modal-f">
+    <input type="file" id="msg-file" multiple style="display:none" onchange="addComposeFile()">
+    <button class="btn-ghost" type="button" onclick="document.getElementById('msg-file').click()" style="margin-right:auto;display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M21 11.5 12 20.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8.2-8.2"/></svg> Attach</button>
+    <button class="btn-ghost" onclick="saveDraft()">Save draft</button>
+    <button class="btn-ghost" onclick="fermer('m-msg')">Cancel</button>
+    <button class="btn-orange" onclick="envoyer()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg> Send</button>
+  </div>
+</div></div>
+
+<!-- MODAL UPLOAD -->
+<div class="overlay" id="m-upload"><div class="modal">
+  <div class="modal-h"><h3>Add document</h3><button class="x" onclick="fermer('m-upload')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label>File</label>
+      <input type="file" id="up-file" style="display:none" onchange="upFileChosen()">
+      <button class="up-drop" type="button" onclick="document.getElementById('up-file').click()" id="up-drop">
+        <svg class="ic" viewBox="0 0 24 24" style="width:20px;height:20px"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span id="up-drop-txt">Choose a file…</span>
+      </button>
+    </div>
+    <div class="field"><label>Document name</label><input id="up-nom" type="text" placeholder="e.g. Sale agreement.pdf"></div>
+    <label class="consent"><input id="up-sign" type="checkbox" checked> Require electronic signature</label>
+    <label class="consent"><input id="up-pub" type="checkbox" checked> Make visible now (otherwise hidden until activated)</label>
+  </div>
+  <div class="modal-f"><button class="btn-ghost" onclick="fermer('m-upload')">Cancel</button><button class="btn-orange" onclick="ajouterDoc()">Add</button></div>
+</div></div>
+
+<!-- MODAL LECTEUR + SIGNATURE -->
+<div class="overlay" id="m-doc"><div class="modal wide" id="doc-modal">
+  <div class="modal-h"><h3 id="doc-title">Document</h3>
+    <div style="display:flex;gap:6px">
+      <button class="x" onclick="toggleFull()" id="full-btn" title="Enlarge"><svg class="ic" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+      <button class="x" onclick="fermer('m-doc')" title="Close">✕</button>
+    </div>
+  </div>
+  <div class="modal-b">
+    <div class="reader" oncontextmenu="return false">
+      <div class="page" id="doc-page"></div>
+      <div class="watermark" id="watermark" style="display:none"><span id="wm"></span></div>
+      <div class="signed-stamp" id="stamp" style="display:none">SIGNED ✓<small id="stamp-name"></small></div>
+    </div>
+    <div class="readonly-bar"><span class="lock" style="display:inline-flex;align-items:center;gap:5px"><svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg> Read-only</span> · download, printing and copying disabled</div>
+    <div id="sign-proof" class="sign-proof" style="display:none"></div>
+    <div id="sign-zone" style="display:none;border-top:1px solid var(--line);padding-top:16px;margin-top:8px">
+      <h4 style="font-size:14px;margin-bottom:12px">Electronic signature</h4>
+      <div class="sign-tabs"><button class="sign-tab active" onclick="signTab('draw',this)">Draw</button><button class="sign-tab" onclick="signTab('type',this)">Type</button></div>
+      <div id="sign-draw"><canvas id="sign-canvas"></canvas><div style="text-align:right;margin-top:6px"><button class="btn-ghost" style="padding:5px 11px;font-size:12px" onclick="clearCanvas()">Clear</button></div></div>
+      <div id="sign-type" class="sign-typed" style="display:none"></div>
+      <label class="consent"><input type="checkbox" id="sign-consent"> I confirm I have reviewed this document and agree to sign it electronically.</label>
+    </div>
+  </div>
+  <div class="modal-f"><button class="act danger" onclick="supprimerDocOuvert()" style="margin-right:auto;width:auto;padding:0 12px;gap:6px;display:inline-flex;align-items:center"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg> Delete</button><button class="btn-ghost" onclick="fermer('m-doc')">Close</button><button class="btn-ghost" id="doc-send-btn" onclick="openSendSign()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg> Send for signature</button><button class="btn-orange" id="doc-sign-btn" onclick="signAction()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2 2 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Sign electronically</button></div>
+</div></div>
+
+<!-- MODAL SEND FOR SIGNATURE -->
+<div class="overlay" id="m-sendsign"><div class="modal">
+  <div class="modal-h"><h3>Send for signature</h3><button class="x" onclick="fermer('m-sendsign')">✕</button></div>
+  <div class="modal-b">
+    <p class="muted" style="margin-bottom:14px">Send <b id="ss-doc" style="color:var(--txt)"></b> to a member to sign electronically.</p>
+    <div class="field"><label>Recipient</label><select id="ss-to"></select></div>
+    <div class="field"><label>Message (optional)</label><textarea id="ss-msg" placeholder="Please review and sign this document."></textarea></div>
+  </div>
+  <div class="modal-f"><button class="btn-ghost" onclick="fermer('m-sendsign')">Cancel</button><button class="btn-orange" onclick="sendForSignature()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg> Send request</button></div>
+</div></div>
+
+<!-- MODAL DELETE DATA ROOM -->
+<div class="overlay" id="m-danger"><div class="modal">
+  <div class="modal-h"><h3>Close Data Room</h3><button class="x" onclick="fermer('m-danger')">✕</button></div>
+  <div class="modal-b">
+    <p class="muted">Permanently delete all data room content and access records. This action cannot be undone.</p>
+    <div class="field" style="margin-top:14px"><label>Type <b style="color:var(--txt)">CLOSE DATA ROOM</b> to confirm</label><input id="danger-confirm" type="text" placeholder="CLOSE DATA ROOM" autocomplete="off"></div>
+  </div>
+  <div class="modal-f"><button class="btn-ghost" onclick="fermer('m-danger')">Cancel</button><button class="btn-orange" style="background:#e5484d;box-shadow:none" onclick="deleteRoom()">Close Data Room</button></div>
+</div></div>
+
+<!-- MODAL FORGOT PASSWORD -->
+<div class="overlay" id="m-forgot"><div class="modal" style="max-width:400px">
+  <div class="modal-h"><h3>Reset your password</h3><button class="x" onclick="fermer('m-forgot')">✕</button></div>
+  <div class="modal-b">
+    <p class="muted" style="margin-bottom:14px">Enter your email. If an account exists, we'll send you a secure link to set a new password.</p>
+    <div class="field"><label>Email</label><input id="fp-email" type="email" placeholder="first.last@company.com"></div>
+  </div>
+  <div class="modal-f"><button class="btn-ghost" onclick="fermer('m-forgot')">Cancel</button><button class="btn-orange" onclick="forgotPassword()">Send reset link</button></div>
+</div></div>
+
+<!-- MODAL CONFIRM -->
+<div class="overlay" id="m-confirm"><div class="modal" style="max-width:400px">
+  <div class="modal-h"><h3 id="confirm-title">Confirm</h3><button class="x" onclick="fermer('m-confirm')">✕</button></div>
+  <div class="modal-b"><p class="muted" id="confirm-text"></p></div>
+  <div class="modal-f"><button class="btn-ghost" onclick="fermer('m-confirm')">Cancel</button><button class="btn-orange" id="confirm-ok" style="background:#e5484d;box-shadow:none">Delete</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ ÉTAT (fausses données, en mémoire) ============ */
+let M = CONFIG.moi;
+
+/* ================= SUPABASE BACKEND ================= */
+const SB_URL = "https://wpqtnueqawisopzwdklv.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwcXRudWVxYXdpc29wendka2x2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMDM3NzQsImV4cCI6MjEwNTY3OTc3NH0.fQ-luIv5DIyv-iCNjF4UBS0Hu1OyD8XEFXrR8p7HyL8";
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+function initialsOf(n){const p=(n||'').trim().split(/\s+/);return(((p[0]||'')[0]||'')+(p.length>1?(p[p.length-1][0]||''):'')).toUpperCase();}
+function relTime(iso){ if(!iso) return 'Never logged in'; const s=(Date.now()-new Date(iso))/1000; if(s<60)return 'just now'; if(s<3600)return Math.floor(s/60)+' min ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return fmtDateShort(new Date(iso)); }
+
+async function loadMembers(){
+  const { data, error } = await sb.from('profiles').select('*').order('created_at');
+  if(error){ console.warn(error); return; }
+  let rows = data.map(p=>({
+    id:p.id, nom:p.full_name||p.email, email:p.email,
+    ini:p.initials||initialsOf(p.full_name||p.email), cls:'doc',
+    org:p.org||'—', role:p.role_title||'—',
+    niveau:p.level==='admin'?'Admin':'User',
+    room_id:p.room_id||null,
+    statut:p.status==='active'?'Active':p.status==='suspended'?'Suspended':'Pending',
+    conn:p.last_login?relTime(p.last_login):'Never logged in', lastDevice:p.last_device||'',
+    expires:p.expires_at?fmtDateShort(new Date(p.expires_at)):'',
+    expTs:p.expires_at?new Date(p.expires_at).getTime():0,
+  }));
+  // Admin view is scoped to the current space: show that room's members + all admins.
+  if(M.niveau==='Admin' && state.currentRoom){
+    rows = rows.filter(m=> m.room_id===state.currentRoom || m.niveau==='Admin');
+  }
+  state.membres = rows;
+}
+async function loadLog(){
+  let q = sb.from('access_logs').select('*').order('created_at',{ascending:false}).limit(100);
+  if(M.niveau==='Admin' && state.currentRoom) q = q.eq('room_id', state.currentRoom);
+  const { data } = await q;
+  if(!data) return;
+  const byId=Object.fromEntries(state.membres.map(m=>[m.id,m.nom]));
+  state.log = data.map(l=>({ who: byId[l.actor_id]||'—', act:l.action, doc:l.target||'—', time:relTime(l.created_at) }));
+}
+async function loadDocs(){
+  let q = sb.from('documents').select('*').order('created_at',{ascending:false});
+  // Admins can see every room, so restrict to the space they're viewing.
+  if(M.niveau==='Admin' && state.currentRoom) q = q.eq('room_id', state.currentRoom);
+  const { data } = await q;
+  if(!data){ state.docs=[]; return; }
+  const byId=Object.fromEntries(state.membres.map(m=>[m.id,m.nom]));
+  state.docs = data.map(d=>({
+    id:d.id, name:d.name, type:d.type||'pdf', by:byId[d.uploaded_by]||'—',
+    sign:d.sign_status, signTo: d.sign_to?byId[d.sign_to]:null, signer:d.signed_by?byId[d.signed_by]:null,
+    signedAt:d.signed_at?new Date(d.signed_at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'',
+    signId:d.sign_ref||'', pub:d.visible, storage_path:d.storage_path, view:'—', url:'',
+  }));
+}
+async function loadMessages(){
+  if(!M||!M.id){ state.messages=[]; return; }
+  const uid=M.id;
+  let q = sb.from('messages').select('*')
+    .or('sender_id.eq.'+uid+',recipient_id.eq.'+uid+',cc_ids.cs.{'+uid+'}')
+    .order('created_at',{ascending:false});
+  if(M.niveau==='Admin' && state.currentRoom) q = q.eq('room_id', state.currentRoom);
+  const { data, error } = await q;
+  if(error||!data){ state.messages=[]; return; }
+  state.messages = data
+    .filter(m=>!(m.purged_by||[]).includes(uid))
+    .map(m=>({
+      id:m.id, sender_id:m.sender_id, recipient_id:m.recipient_id,
+      cc_ids:Array.isArray(m.cc_ids)?m.cc_ids:[],
+      subject:m.subject||'', body:m.body||'',
+      att:Array.isArray(m.attachments)?m.attachments:[],
+      is_draft:!!m.is_draft,
+      read_by:Array.isArray(m.read_by)?m.read_by:[],
+      trashed_by:Array.isArray(m.trashed_by)?m.trashed_by:[],
+      purged_by:Array.isArray(m.purged_by)?m.purged_by:[],
+      created_at:m.created_at, time:relTime(m.created_at),
+    }));
+}
+// Alias kept so older callers still work.
+async function loadConvos(){ return loadMessages(); }
+async function inviteMember(payload){
+  const { data:{session} } = await sb.auth.getSession();
+  try{
+    const res = await fetch(SB_URL+'/functions/v1/invite', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body: JSON.stringify(payload),
+    });
+    const out = await res.json().catch(()=>({}));
+    if(!res.ok){ toast(out.error || 'Create failed. Is the invite function deployed?'); return null; }
+    return out;
+  }catch(e){ toast('Invite function not reachable yet.'); return null; }
+}
+// The room new content should be tagged with (admin → selected space; member → own space).
+function activeRoom(){ return (M && M.niveau==='Admin') ? state.currentRoom : (M&&M.room_id) || state.currentRoom; }
+function roomName(id){ const r=state.rooms.find(x=>x.id===id); return r?r.name:'—'; }
+const RS_ICON='<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>';
+function renderRoomSwitcher(){
+  const el=$('room-switcher'); if(!el) return;
+  const cur=roomName(state.currentRoom);
+  if(M.niveau!=='Admin'){
+    // Members are locked to their own space — show it as a static label.
+    el.innerHTML = state.currentRoom ? `<span class="room-badge"><span class="rs-ico" style="display:inline-grid">${RS_ICON}</span> ${esc(cur)}</span>` : '';
+    return;
+  }
+  const items = state.rooms.map(r=>`<button class="rm-item ${r.id===state.currentRoom?'sel':''}" onclick="switchRoom('${r.id}')">
+      <span class="rs-ico" style="display:inline-grid">${RS_ICON}</span><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</span>
+      ${r.id===state.currentRoom?'<span class="chk">'+IC.check+'</span>':''}</button>`).join('');
+  el.innerHTML = `
+    <button class="room-btn" onclick="toggleRoomMenu(event)">
+      <span class="rs-ico">${RS_ICON}</span>
+      <span class="rs-name">${esc(cur||'No data room')}</span>
+      <span class="rs-caret">▾</span>
+    </button>
+    <div class="room-menu" id="room-menu">
+      <div class="rm-head">Data rooms</div>
+      ${items||'<div class="rm-item" style="cursor:default;color:var(--txt-3)">No data room yet</div>'}
+      <div class="rm-sep"></div>
+      <button class="rm-item rm-new" onclick="openRoomModal('new')">${IC.plus} New data room</button>
+      ${state.currentRoom?`<button class="rm-item" onclick="openRoomModal('rename')">${IC.edit} Rename current</button>`:''}
+    </div>`;
+}
+function toggleRoomMenu(e){ e.stopPropagation(); const m=$('room-menu'); if(m) m.classList.toggle('open'); }
+document.addEventListener('click',()=>{ const m=$('room-menu'); if(m) m.classList.remove('open'); });
+async function switchRoom(id){
+  const m=$('room-menu'); if(m) m.classList.remove('open');
+  if(id===state.currentRoom) return;
+  state.currentRoom=id; state.openMsg=null; state.openDoc=null;
+  await loadMembers(); await loadDocs(); await loadMessages(); await loadLog();
+  renderAll(); renderRoomSwitcher();
+  toast('Space: '+roomName(id));
+}
+function openRoomModal(mode){
+  const m=$('room-menu'); if(m) m.classList.remove('open');
+  state.roomModalMode=mode;
+  $('room-modal-title').textContent = mode==='rename' ? 'Rename data room' : 'New data room';
+  $('room-name').value = mode==='rename' ? roomName(state.currentRoom) : '';
+  $('room-save').textContent = mode==='rename' ? 'Rename' : 'Create';
+  modal('m-room'); setTimeout(()=>{ const i=$('room-name'); if(i) i.focus(); },50);
+}
+async function saveRoom(){
+  const name=$('room-name').value.trim(); if(!name){ toast('Enter a name.'); return; }
+  if(state.roomModalMode==='rename'){
+    const r=await sb.from('rooms').update({name}).eq('id',state.currentRoom);
+    if(r.error){ toast('Failed: '+r.error.message); return; }
+    await loadRooms(); renderRoomSwitcher(); fermer('m-room'); toast('Renamed.');
+  } else {
+    const r=await sb.from('rooms').insert({name, created_by:M.id}).select().single();
+    if(r.error){ toast('Failed: '+r.error.message); return; }
+    state.currentRoom=r.data.id;
+    await loadRooms(); await loadMembers(); await loadDocs(); await loadMessages(); await loadLog();
+    renderAll(); renderRoomSwitcher(); fermer('m-room');
+    toast('Data room “'+name+'” created.');
+  }
+}
+async function loadRooms(){
+  const { data } = await sb.from('rooms').select('*').order('created_at');
+  state.rooms = data || [];
+  // Pick the active room: a member is locked to their own; an admin keeps the
+  // current selection if still valid, otherwise the first room.
+  if(M.niveau!=='Admin'){ state.currentRoom = M.room_id || (state.rooms[0]&&state.rooms[0].id) || null; }
+  else if(!state.currentRoom || !state.rooms.some(r=>r.id===state.currentRoom)){ state.currentRoom = state.rooms[0] ? state.rooms[0].id : null; }
+}
+async function hydrate(){ await loadRooms(); await loadMembers(); await loadDocs(); await loadConvos(); await loadLog(); renderAll(); renderRoomSwitcher(); }
+
+async function entrer(ev){
+  ev.preventDefault();
+  const f=ev.target;
+  const email=f.querySelector('input[type=email]').value.trim();
+  const password=f.querySelector('input[type=password]').value;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ toast('Sign-in failed. Check your email and password.'); return; }
+  await afterLogin(data.user);
+}
+async function afterLogin(user){
+  const { data:prof, error } = await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(error||!prof){ toast('No profile found for this account.'); await sb.auth.signOut(); return; }
+  if(prof.status==='suspended'){ toast('This access is suspended.'); await sb.auth.signOut(); return; }
+  if(prof.expires_at && new Date(prof.expires_at)<new Date()){ toast('This access has expired.'); await sb.auth.signOut(); return; }
+  M={ id:prof.id, nom:prof.full_name||prof.email, email:prof.email,
+      initiales:prof.initials||initialsOf(prof.full_name||prof.email),
+      role:prof.role_title, niveau:prof.level==='admin'?'Admin':'User',
+      room_id:prof.room_id||null };
+  const device=detectDevice();
+  await sb.from('profiles').update({ last_login:new Date().toISOString(), last_device:device }).eq('id',prof.id);
+  document.getElementById('me-av').textContent=M.initiales;
+  document.getElementById('um-name').textContent=M.nom;
+  document.getElementById('um-email').textContent=M.email||'';
+  $('login').style.display='none'; const inv=$('invite'); if(inv) inv.style.display='none'; $('app').style.display='grid';
+  await hydrate(); applyRole(); addLog('login', device);
+}
+async function bootstrap(){ try{ const { data:{session} } = await sb.auth.getSession(); if(session&&session.user) await afterLogin(session.user); }catch(e){console.warn(e);} }
+document.addEventListener('DOMContentLoaded', bootstrap);
+/* =================================================== */
+const state = {
+  folders:[],
+  rooms:[],
+  currentRoom:null,
+  docs:[],
+  membres:[
+    {nom:'Robert Chaplin',email:'robert.chaplin@sk-exchange.com',ini:'RC',cls:'pdf',org:'SK Exchange',role:'Founder',niveau:'Admin',conn:'online',statut:'Active'},
+  ],
+  messages:[],
+  folder:'inbox',
+  openMsg:null,
+  msgQuery:'',
+  log:[],
+  selFolder:null,
+  openDoc:null,
+  vue:'admin',   // 'admin' = your view · 'client' = member preview
+  editIdx:null,
+  permsCatalog:[
+    {k:'msg',    label:'Send messages'},
+    {k:'att',    label:'Send attachments'},
+    {k:'upload', label:'Upload documents'},
+    {k:'sign',   label:'Sign documents'},
+    {k:'members',label:'Invite & manage members'},
+    {k:'roles',  label:'Manage roles'},
+  ],
+  roles:{
+    Admin: ['msg','att','upload','sign','members','roles'],
+    User:  ['msg','att','upload','sign'],
+  },
+};
+
+/* ============ APPLIQUE LA CONFIG ============ */
+(function(){
+  document.title = CONFIG.nom + " — Data Room";
+  const r=document.documentElement.style;
+  r.setProperty('--orange',CONFIG.couleur); r.setProperty('--orange-clair',CONFIG.couleurClair);
+  document.querySelectorAll('[data-init]').forEach(e=>e.textContent=CONFIG.initiales);
+  document.querySelectorAll('[data-nom]').forEach(e=>{const s=e.querySelector('small'); if(e.childNodes[0])e.childNodes[0].nodeValue=CONFIG.nom; if(s)s.textContent=CONFIG.baseline;});
+  document.querySelectorAll('[data-nom2]').forEach(e=>e.textContent=CONFIG.nom);
+  document.querySelectorAll('[data-base]').forEach(e=>e.textContent=CONFIG.baseline);
+  document.querySelectorAll('[data-op]').forEach(e=>e.textContent=CONFIG.operation);
+  document.getElementById('me-av').textContent=M.initiales;
+  document.getElementById('um-name').textContent=M.nom;
+  document.getElementById('um-email').textContent=(state.membres.find(m=>m.nom===M.nom)||{}).email||'';
+})();
+function toggleUserMenu(e){ if(e)e.stopPropagation(); $('user-menu').classList.toggle('open'); }
+document.addEventListener('click',e=>{ const um=$('user-menu'); if(um&&!e.target.closest('.usermenu')) um.classList.remove('open'); });
+
+/* ============ RENDU ============ */
+const $=id=>document.getElementById(id);
+/* ---- Monochrome SVG icon set (matches the menu style) ---- */
+const _svg=p=>`<svg class="ic" viewBox="0 0 24 24">${p}</svg>`;
+const IC={
+  eye:_svg('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>'),
+  eyeOff:_svg('<path d="M2 12s3.5-7 10-7c1.5 0 2.8.3 4 .9"/><path d="M22 12s-3.5 7-10 7c-1.5 0-2.8-.3-4-.9"/><path d="M3 3l18 18"/>'),
+  trash:_svg('<path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>'),
+  edit:_svg('<path d="M12 20h9"/><path d="M16.5 3.5a2 2 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>'),
+  compose:_svg('<path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M16.5 3.5a2 2 0 0 1 3 3L12 14l-4 1 1-4 7.5-7.5z"/>'),
+  send:_svg('<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/>'),
+  clip:_svg('<path d="M21 11.5 12 20.5a5 5 0 0 1-7-7l9-9a3.3 3.3 0 0 1 4.7 4.7l-9 9a1.6 1.6 0 0 1-2.3-2.3l8.2-8.2"/>'),
+  lock:_svg('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+  lockOpen:_svg('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-1.9"/>'),
+  shield:_svg('<path d="M12 3l7 3v6c0 4-3 6.6-7 8-4-1.4-7-4-7-8V6l7-3z"/><path d="M9.5 12l1.7 1.7L15 10"/>'),
+  link:_svg('<path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>'),
+  plus:_svg('<path d="M12 5v14"/><path d="M5 12h14"/>'),
+  download:_svg('<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/>'),
+  expand:_svg('<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/>'),
+  power:_svg('<path d="M12 4v8"/><path d="M7.5 7a7 7 0 1 0 9 0"/>'),
+  mail:_svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),
+  check:_svg('<path d="M4 12l5 5L20 6"/>'),
+  alert:_svg('<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/>'),
+  ban:_svg('<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'),
+  back:_svg('<path d="M19 12H5"/><path d="M11 18l-6-6 6-6"/>'),
+  bell:_svg('<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
+};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const signTag=s=> s==='signed'?'<span class="tag on">Signed</span>' : s==='todo'?'<span class="tag view">To sign</span>' : '<span class="muted">—</span>';
+
+function renderRoom(){
+  const client = state.vue==='client';
+  document.getElementById('app').classList.toggle('mode-client',client);
+  $('btn-vue').innerHTML = client ? IC.back+' Back to my view' : IC.eye+' Preview as member';
+  $('btn-vue').className = client ? 'btn-orange' : 'btn-ghost';
+
+  const visibles = state.docs.filter(d=>d.pub);
+  const total = client ? visibles.length : state.docs.length;
+  const aSigner = (client?visibles:state.docs).filter(d=>d.sign==='todo').length;
+  const consult=state.log.filter(l=>l.act==='view').length;
+  $('room-sub').innerHTML = client
+    ? `<b style="color:var(--orange)">Member preview</b> — the member only sees the ${visibles.length} document(s) you've made visible.`
+    : total+' documents · '+visibles.length+' visible · just now';
+  $('stats').innerHTML=`
+    <div class="stat"><div class="k">${client?'Visible documents':'Documents'}</div><div class="v">${total}</div></div>
+    <div class="stat"><div class="k">Active members</div><div class="v">${state.membres.filter(m=>m.statut==='Active').length}</div></div>
+    <div class="stat"><div class="k">To sign</div><div class="v">${aSigner}</div></div>
+    <div class="stat"><div class="k">Views</div><div class="v">${consult} <small>▲</small></div></div>`;
+  $('folders').style.display='none';
+  let docs = client? visibles : state.docs;
+  $('docs-title').textContent = 'Documents';
+  $('docs-body').innerHTML = docs.map(d=>{
+    const visCell = client ? '' :
+      `<td onclick="event.stopPropagation()"><div style="display:flex;gap:6px;align-items:center">${ d.pub
+        ? `<button class="tag on" style="cursor:pointer;border:none" onclick="togglePub('${d.id}')">${IC.eye} Visible</button>`
+        : `<button class="tag off" style="cursor:pointer;border:none" onclick="togglePub('${d.id}')">${IC.eyeOff} Hidden</button>` }<button class="act danger" style="width:28px;height:28px" title="Delete" onclick="askDeleteDoc('${d.id}')">${IC.trash}</button></div></td>`;
+    return `<tr class="clic" onclick="ouvrirDoc('${d.id}')">
+      <td><div class="doc"><span class="di ${d.type}">${d.type.toUpperCase()}</span> ${esc(d.name)}</div></td>
+      <td class="muted">${esc(d.by)}</td>${visCell}<td>${d.sign==='todo'&&d.signTo?'<span class="tag view">To sign · '+esc(d.signTo)+'</span>':signTag(d.sign)}</td>
+      <td>${d.view.startsWith('Viewed')?'<span class="tag view">'+esc(d.view)+'</span>':'<span class="muted">'+esc(d.view)+'</span>'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" class="muted" style="padding:22px">${client?'No document has been shared with you yet.':'No document in this folder.'}</td></tr>`;
+  $('col-vis').style.display = client ? 'none' : '';
+}
+/* Per-person avatar colour — used ONLY in the messaging area.
+   Same person always gets the same colour (sober, professional palette). */
+const AV_PALETTE=[
+  ['#EE362B','#F5584E'], // red
+  ['#2E9E6B','#43C288'], // green
+  ['#3B6FE0','#5B8DF5'], // blue
+  ['#D98A2B','#F0A94A'], // amber
+  ['#7A5CD0','#9A7CE8'], // purple
+  ['#1FA1A1','#3CC4C4'], // teal
+  ['#C24D7A','#E06A97'], // rose
+  ['#5B6B8C','#7B8BAC'], // slate
+];
+function avColor(key){
+  const s=String(key||''); let h=0;
+  for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; }
+  const p=AV_PALETTE[h%AV_PALETTE.length];
+  return 'linear-gradient(135deg,'+p[0]+','+p[1]+')';
+}
+function avStyle(key){ return 'style="background:'+avColor(key)+'"'; }
+/* ===================== MAILBOX (Inbox / Sent / Drafts / Trash) ===================== */
+function memById(id){ return state.membres.find(x=>x.id===id) || null; }
+function nameOf(id){ const m=memById(id); return m?m.nom:'Unknown'; }
+function iniOf(id){ const m=memById(id); return m?m.ini:'?'; }
+function emailById(id){ const m=memById(id); return m?(m.email||''):''; }
+const hasMe = a => Array.isArray(a) && a.includes(M.id);
+
+// Messages visible in the current folder, newest first, after search.
+function folderMsgs(){
+  const u=M.id, f=state.folder;
+  let arr=state.messages.filter(m=>!hasMe(m.purged_by));
+  if(f==='inbox')  arr=arr.filter(m=> !m.is_draft && !hasMe(m.trashed_by) && (m.recipient_id===u || hasMe(m.cc_ids)));
+  else if(f==='sent')   arr=arr.filter(m=> !m.is_draft && !hasMe(m.trashed_by) && m.sender_id===u);
+  else if(f==='drafts') arr=arr.filter(m=> m.is_draft  && !hasMe(m.trashed_by) && m.sender_id===u);
+  else if(f==='trash')  arr=arr.filter(m=> hasMe(m.trashed_by));
+  const q=(state.msgQuery||'').toLowerCase().trim();
+  if(q) arr=arr.filter(m=> (m.subject||'').toLowerCase().includes(q) || (m.body||'').toLowerCase().includes(q)
+      || nameOf(m.sender_id).toLowerCase().includes(q) || (m.recipient_id&&nameOf(m.recipient_id).toLowerCase().includes(q)));
+  return arr;
+}
+function inboxUnread(){
+  const u=M.id;
+  return state.messages.filter(m=> !m.is_draft && !hasMe(m.trashed_by) && !hasMe(m.purged_by)
+    && (m.recipient_id===u || hasMe(m.cc_ids)) && !(m.read_by||[]).includes(u)).length;
+}
+function isUnread(m){ return !m.is_draft && m.sender_id!==M.id && !(m.read_by||[]).includes(M.id); }
+
+const FOLDER_ICONS = {
+  inbox:'<svg viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.5 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.5A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.5z"/></svg>',
+  sent:'<svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>',
+  drafts:'<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2 2 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>',
+};
+function replyIcon(){ return '<svg viewBox="0 0 24 24"><path d="M9 17l-6-5 6-5"/><path d="M3 12h10a6 6 0 0 1 6 6v1"/></svg>'; }
+function fwdIcon(){ return '<svg viewBox="0 0 24 24"><path d="M15 17l6-5-6-5"/><path d="M21 12H11a6 6 0 0 0-6 6v1"/></svg>'; }
+function restoreIcon(){ return '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>'; }
+function folderTrashIcon(){ return FOLDER_ICONS.trash; }
+function mailListHTML(msgs){
+  msgs = msgs || folderMsgs();
+  if(!msgs.length) return `<div class="mbox-empty">No messages here.</div>`;
+  return msgs.map(m=>{
+    const who = state.folder==='sent' ? ('To: '+ (m.recipient_id?nameOf(m.recipient_id):'—'))
+             : state.folder==='drafts' ? ('To: '+ (m.recipient_id?nameOf(m.recipient_id):'(no recipient)'))
+             : nameOf(m.sender_id);
+    const avKey = (state.folder==='sent'||state.folder==='drafts') ? (m.recipient_id?nameOf(m.recipient_id):'—') : nameOf(m.sender_id);
+    const ini = (state.folder==='sent'||state.folder==='drafts') ? (m.recipient_id?iniOf(m.recipient_id):'—') : iniOf(m.sender_id);
+    const preview = (m.body||'').replace(/\s+/g,' ').slice(0,80) || (m.att.length?'(attachment)':'');
+    const clip = m.att.length ? ' '+IC.clip : '';
+    return `<div class="mail-item ${isUnread(m)?'unread':''} ${state.openMsg===m.id?'sel':''}" onclick="openMsg('${m.id}')">
+      <div class="av" ${avStyle(avKey)}>${esc(ini)}</div>
+      <div class="mi"><div class="r1"><span class="nm">${esc(who)}</span><span class="tm">${esc(m.time)}</span></div>
+        <div class="su">${esc(m.subject||'(no subject)')}${clip}</div>
+        <div class="pv">${esc(preview)}</div></div>
+    </div>`;
+  }).join('');
+}
+function renderInbox(){
+  const un=inboxUnread();
+  $('nav-msg').textContent = un || '';
+  const folders=[['inbox','Inbox'],['sent','Sent'],['drafts','Drafts'],['trash','Trash']];
+  const folCol = folders.map(([k,label])=>{
+    const badge = k==='inbox' && un ? `<span class="fbadge">${un}</span>` : '';
+    return `<div class="mbox-folder ${state.folder===k?'sel':''}" onclick="setFolder('${k}')">
+      <span class="fico">${FOLDER_ICONS[k]}</span><span class="flabel">${label}</span>${badge}</div>`;
+  }).join('');
+
+  const msgs=folderMsgs();
+  const listItems = mailListHTML(msgs);
+
+  // Reading pane
+  let read;
+  const m = state.openMsg ? msgs.find(x=>x.id===state.openMsg) || state.messages.find(x=>x.id===state.openMsg) : null;
+  if(!m){ read=`<div class="mbox-empty">Select a message to read it.</div>`; }
+  else {
+    const inTrash = hasMe(m.trashed_by);
+    const isDraft = m.is_draft;
+    const toName = m.recipient_id?nameOf(m.recipient_id):'—';
+    const ccNames = (m.cc_ids||[]).map(id=>esc(nameOf(id))).join(', ');
+    const atts = m.att&&m.att.length ? '<div class="att-row" style="margin-top:16px">'+m.att.map(a=>attChip(a)).join('')+'</div>' : '';
+    let actions;
+    if(isDraft){
+      actions=`<button class="msg-btn primary" onclick="editDraft('${m.id}')">${IC.edit||''} Edit draft</button>
+        <button class="msg-btn danger" onclick="trashMsg('${m.id}')">${folderTrashIcon()} Move to Trash</button>`;
+    } else if(inTrash){
+      actions=`<button class="msg-btn" onclick="restoreMsg('${m.id}')">${restoreIcon()} Restore</button>
+        <button class="msg-btn danger" onclick="purgeMsg('${m.id}')">${folderTrashIcon()} Delete permanently</button>`;
+    } else {
+      actions=`<button class="msg-btn primary" onclick="reply('${m.id}',false)">${replyIcon()} Reply</button>
+        <button class="msg-btn" onclick="reply('${m.id}',true)">${replyIcon()} Reply all</button>
+        <button class="msg-btn" onclick="forward('${m.id}')">${fwdIcon()} Forward</button>
+        <button class="msg-btn danger" onclick="trashMsg('${m.id}')">${folderTrashIcon()} Move to Trash</button>`;
+    }
+    read=`<div class="mail-read">
+      <div class="msg-actions">${actions}</div>
+      <div class="read-h">
+        <h3>${esc(m.subject||'(no subject)')}</h3>
+        <div class="read-meta"><div class="av" ${avStyle(nameOf(m.sender_id))}>${esc(iniOf(m.sender_id))}</div>
+          <div><div class="ln1">${esc(nameOf(m.sender_id))}</div><div class="ln2">${IC.mail} ${esc(emailById(m.sender_id))} · ${esc(m.time)}</div></div></div>
+        <div class="msg-tocc">
+          <div><b>To:</b> ${esc(toName)}${m.recipient_id?' &lt;'+esc(emailById(m.recipient_id))+'&gt;':''}</div>
+          ${ccNames?`<div><b>Cc:</b> ${ccNames}</div>`:''}
+        </div>
+      </div>
+      <div class="thread"><div class="email-body" style="padding-left:0">${esc(m.body||'')}${atts}</div></div>
+    </div>`;
+  }
+
+  $('mail').innerHTML =
+    `<div class="mbox-folders">
+       <button class="mbox-compose" onclick="openCompose()">${IC.edit||''} Compose</button>
+       <div class="mbox-flist">${folCol}</div>
+     </div>
+     <div class="mbox-list">
+       <div class="mbox-search"><input type="text" placeholder="Search messages…" value="${esc(state.msgQuery||'')}" oninput="onMsgSearch(this.value)"></div>
+       <div class="mbox-items">${listItems}</div>
+     </div>
+     ${read}`;
+}
+function setFolder(f){ state.folder=f; state.openMsg=null; renderInbox(); }
+function onMsgSearch(v){ state.msgQuery=v; const el=document.querySelector('.mbox-items'); if(el) el.innerHTML=mailListHTML(); }
+async function openMsg(id){
+  state.openMsg=id;
+  const m=state.messages.find(x=>x.id===id);
+  // Mark as read if I'm a recipient/cc and haven't read it yet.
+  if(m && isUnread(m)){
+    m.read_by=[...(m.read_by||[]),M.id];
+    try{ await sb.from('messages').update({read_by:m.read_by}).eq('id',id); }catch(e){}
+  }
+  renderInbox();
+}
+async function trashMsg(id){
+  const m=state.messages.find(x=>x.id===id); if(!m)return;
+  m.trashed_by=[...new Set([...(m.trashed_by||[]),M.id])];
+  const r=await sb.from('messages').update({trashed_by:m.trashed_by}).eq('id',id);
+  if(r.error){toast('Action failed: '+r.error.message);return;}
+  state.openMsg=null; renderInbox(); toast('Moved to Trash.');
+}
+async function restoreMsg(id){
+  const m=state.messages.find(x=>x.id===id); if(!m)return;
+  m.trashed_by=(m.trashed_by||[]).filter(x=>x!==M.id);
+  const r=await sb.from('messages').update({trashed_by:m.trashed_by}).eq('id',id);
+  if(r.error){toast('Action failed: '+r.error.message);return;}
+  state.openMsg=null; renderInbox(); toast('Restored.');
+}
+function purgeMsg(id){
+  askConfirm('Delete permanently','Permanently delete this message from your mailbox? This cannot be undone.','Delete',async()=>{
+    const m=state.messages.find(x=>x.id===id); if(!m)return;
+    m.purged_by=[...new Set([...(m.purged_by||[]),M.id])];
+    const r=await sb.from('messages').update({purged_by:m.purged_by}).eq('id',id);
+    if(r.error){toast('Delete failed: '+r.error.message);return;}
+    state.messages=state.messages.filter(x=>x.id!==id);
+    state.openMsg=null; renderInbox(); toast('Message deleted.');
+  });
+}
+/* Attachments */
+let replyAtt=[];
+function fmtSize(b){ return b>1048576 ? (b/1048576).toFixed(1)+' MB' : b>1024 ? Math.round(b/1024)+' KB' : b+' B'; }
+function attChip(a,idx){
+  const rm = (typeof idx==='number') ? `<b onclick="event.stopPropagation();removeComposeAtt(${idx})">✕</b>` : '';
+  // Before send: open the local blob. After send (loaded from DB): open the stored file.
+  const open = a.url ? `openAtt('${a.url}')`
+    : (a.path ? `openStoredAtt('${encodeURIComponent(a.path)}','${esc(a.name).replace(/'/g,"\\'")}')` : `openAtt('')`);
+  return `<span class="att-chip" onclick="${open}">${IC.clip} ${esc(a.name)} <small>${esc(a.size)}</small>${rm}</span>`;
+}
+// Upload one attachment to Storage; returns {name,size,path} to save on the message.
+async function uploadAtt(file){
+  const path='messages/'+M.id+'/'+Date.now()+'_'+file.name.replace(/[^\w.\-]+/g,'_');
+  const up=await sb.storage.from('documents').upload(path, file, { contentType:file.type||'application/octet-stream', upsert:false });
+  if(up.error){ toast('Attachment upload failed: '+up.error.message); return null; }
+  return { name:file.name, size:fmtSize(file.size), path };
+}
+// Build the attachments array for a message, uploading any new local files first.
+async function buildAtts(list){
+  const out=[];
+  for(const a of list){
+    if(a.file){ const p=await uploadAtt(a.file); if(p) out.push(p); }
+    else if(a.path){ out.push({name:a.name,size:a.size,path:a.path}); }
+  }
+  return out;
+}
+// Open a stored attachment. Opens the tab synchronously (user gesture) to avoid
+// popup blocking, then loads the file as a blob — reliable for PDF and images.
+function openStoredAtt(encPath,name){
+  const w=window.open('','_blank');
+  try{ if(w) w.document.write('<title>Loading…</title><p style="font:14px sans-serif;padding:20px">Loading…</p>'); }catch(e){}
+  (async()=>{
+    try{
+      const path=decodeURIComponent(encPath);
+      const dl=await sb.storage.from('documents').download(path);
+      if(dl.error||!dl.data){ if(w)w.close(); toast('Attachment unavailable'+(dl.error?': '+dl.error.message:'.')); return; }
+      const ext=(name.split('.').pop()||'').toLowerCase();
+      const mime = ext==='pdf' ? 'application/pdf'
+        : /^(png|jpe?g|gif|webp|bmp|svg)$/.test(ext) ? ('image/'+(ext==='jpg'?'jpeg':ext==='svg'?'svg+xml':ext))
+        : (dl.data.type||'application/octet-stream');
+      const url=URL.createObjectURL(new Blob([dl.data],{type:mime}));
+      if(w) w.location.href=url; else window.open(url,'_blank');
+      setTimeout(()=>{try{URL.revokeObjectURL(url);}catch(e){}},120000);
+    }catch(e){ if(w)w.close(); toast('Attachment error: '+(e&&e.message||e)); }
+  })();
+}
+function removeComposeAtt(i){ composeAtt.splice(i,1); $('msg-att').innerHTML=composeAtt.map((a,idx)=>attChip(a,idx)).join(''); }
+function openAtt(url){ if(url) window.open(url,'_blank'); }
+function notifDataRoom(text){ /* in-app data-room notices are handled via the activity log now */ }
+function statutTag(s){
+  if(s==='Active') return '<span class="tag on">● Active</span>';
+  if(s==='Suspended') return '<span class="tag blue" style="background:rgba(255,80,80,.14);color:#ff7a7a">'+IC.ban+' Suspended</span>';
+  return '<span class="tag off">'+IC.mail+' Pending</span>';
+}
+function renderMembres(){
+  $('membres-body').innerHTML = state.membres.map((m,i)=>{
+    const expired = m.expTs && Date.now()>m.expTs;
+    const conn = m.conn==='online'?'<span class="tag on">● Online</span>':(m.conn==='Never logged in'?'<span class="muted">Never logged in</span>':'<span class="muted">'+esc(m.conn)+'</span>');
+    const dev = m.lastDevice?'<div class="muted" style="margin-top:3px">'+esc(m.lastDevice)+'</div>':'';
+    const niveau = m.niveau==='Admin'?'<span class="tag view">'+IC.shield+' Admin</span>':'<span class="muted">User</span>';
+    const statutCell = expired
+      ? '<span class="tag blue" style="background:rgba(255,80,80,.14);color:#ff7a7a">'+IC.alert+' Expired</span>'
+      : statutTag(m.statut) + (m.niveau!=='Admin'?'<div class="muted" style="margin-top:3px">'+(m.expires?('Expires '+esc(m.expires)):'No expiry')+'</div>':'');
+    const inviteBtn = (m.statut==='pending'||m.statut==='Pending') ? `<button class="act" title="Invitation link" onclick="openInvite(${i})">${IC.link}</button>` : '';
+    const acts = `<div style="display:flex;gap:6px;justify-content:flex-end">
+        ${inviteBtn}
+        <button class="act" title="View" onclick="ouvrirMembre(${i},true)">${IC.eye}</button>
+        <button class="act" title="Edit" onclick="ouvrirMembre(${i})">${IC.edit}</button>
+        <button class="act danger" title="Delete" onclick="askDeleteMember(${i})">${IC.trash}</button></div>`;
+    return `<tr>
+      <td><div class="doc"><span class="di ${m.cls} round">${esc(m.ini)}</span>
+        <div><div>${esc(m.nom)}</div><div class="muted" style="font-weight:400">${esc(m.email)} · ${esc(m.org)}</div></div></div></td>
+      <td>${niveau}<div class="muted" style="margin-top:2px">${esc(m.role)}</div></td>
+      <td>${statutCell}</td>
+      <td>${conn}${dev}</td>
+      <td>${acts}</td></tr>`;
+  }).join('');
+}
+function renderJournal(){
+  const label={view:'<span class="tag view">View</span>',sign:'<span class="tag on">Signature</span>',download:'<span class="tag blue">Download</span>',login:'<span class="tag off">'+IC.lockOpen+' Login</span>',invite:'<span class="tag blue">Invitation</span>',msg:'<span class="tag off">Message</span>',upload:'<span class="tag blue">Upload</span>',roles:'<span class="tag blue">Admin</span>'};
+  $('journal-body').innerHTML = state.log.map(l=>`<tr><td>${esc(l.who)}</td><td>${label[l.act]||l.act}</td><td class="muted">${esc(l.doc)}</td><td class="muted">${esc(l.time)}</td></tr>`).join('');
+  // bandeau live
+  const strip=$('live-strip'); if(!strip)return;
+  const online=state.membres.filter(m=>m.conn==='online');
+  const recents=state.membres.filter(m=>m.conn!=='online'&&m.conn!=='Never logged in').slice(0,3);
+  strip.innerHTML = `<div class="panel" style="padding:16px 18px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;color:var(--ok)"><span class="live-dot"></span> ONLINE (${online.length})</span>
+      ${online.map(m=>`<span class="chip">${esc(m.ini)} · ${esc(m.nom.split(' ')[0])}</span>`).join('')}
+      <span style="width:1px;height:18px;background:var(--line);margin:0 4px"></span>
+      <span style="font-size:12px;font-weight:700;color:var(--txt-3)">RECENTLY</span>
+      ${recents.map(m=>`<span class="chip off">${esc(m.nom.split(' ')[0])} — ${esc(m.conn)}</span>`).join('')}
+    </div></div>`;
+}
+function renderAll(){renderRoom();renderInbox();renderMembres();renderRoles();renderJournal();fillSelects();}
+
+function heure(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function addLog(act,doc){
+  state.log.unshift({who:M?M.nom:'—',act,doc:doc||'—',time:'just now'});renderJournal();
+  if(M&&M.id){ sb.from('access_logs').insert({actor_id:M.id, action:act, target:(doc&&doc!=='—')?doc:null, device:(act==='login'?doc:null), room_id:(M.niveau==='Admin'?state.currentRoom:(M.room_id||state.currentRoom))}).then(r=>{},e=>{}); }
+}
+
+/* ============ NAVIGATION ============ */
+function applyRole(){
+  const admin = M.niveau==='Admin';
+  $('nav-members').style.display = admin?'':'none';
+  $('nav-journal').style.display = admin?'':'none';
+  $('btn-vue').style.display = admin?'':'none';
+  if(!admin){
+    const cur=document.querySelector('.view.active');
+    if(cur && (cur.id==='v-membres'||cur.id==='v-journal')) voir('room', document.querySelector('.nav-item'));
+  }
+}
+async function sortir(){ try{await sb.auth.signOut();}catch(e){} M=null; $('app').style.display='none';$('login').style.display='grid';window.scrollTo(0,0); }
+function voir(id,el){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$('v-'+id).classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));el.classList.add('active');}
+function qNav(i){return document.querySelectorAll('.nav-item')[i];}
+function selFolder(id){state.selFolder = state.selFolder===id?null:id;renderRoom();}
+function toggleVue(){ state.vue = state.vue==='client'?'admin':'client'; state.selFolder=null; renderRoom(); if(state.vue==='client')toast('You now see what the member sees.'); }
+async function togglePub(id){ const d=state.docs.find(x=>x.id===id); if(!d)return; const nv=!d.pub; const r=await sb.from('documents').update({visible:nv}).eq('id',id); if(r.error){toast('Update failed.');return;} d.pub=nv; renderRoom(); toast(nv?('"'+d.name+'" is now visible.'):('"'+d.name+'" hidden.')); }
+
+/* ============ MODALS ============ */
+function modal(id){ if(id==='m-msg'||id==='m-upload') fillSelects(); $(id).classList.add('open');}
+function fermer(id){$(id).classList.remove('open');if(id==='m-doc'){$('sign-zone').style.display='none';$('doc-modal').classList.remove('full');$('full-btn').innerHTML='<svg class="ic" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/></svg>';}}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)fermer(o.id);}));
+function fillSelects(){}
+/* ---- Compose: multiple To + Cc, drafts, reply/forward ---- */
+let composeTo=[];      // array of member ids
+let composeCc=[];      // array of member ids
+let composeDraftId=null; // id of the draft being edited (else null)
+function resetCompose(){
+  composeTo=[]; composeCc=[]; composeDraftId=null; composeAtt=[];
+  $('msg-from').textContent = M.nom+' (me) <'+(M.email||'')+'>';
+  $('to-search').value=''; $('cc-search').value='';
+  $('to-results').style.display='none'; $('cc-results').style.display='none';
+  $('msg-subj').value=''; $('msg-body').value=''; $('msg-att').innerHTML='';
+  $('msg-modal-title').textContent='New message';
+  renderReciChips('to'); renderReciChips('cc');
+}
+function openCompose(){ resetCompose(); modal('m-msg'); searchReci('to'); }
+function renderReciChips(field){
+  const ids = field==='to'?composeTo:composeCc;
+  const el = $(field+'-chips');
+  el.innerHTML = ids.map(id=>{
+    const m=memById(id)||{nom:'?',ini:'?',email:''};
+    return `<span class="to-chip"><div class="av" style="width:20px;height:20px;font-size:9px;border-radius:50%;display:grid;place-items:center;color:#fff;background:${avColor(m.nom)}">${esc(m.ini)}</div> ${esc(m.nom)} <span class="rm" onclick="removeReci('${field}','${id}')">✕</span></span>`;
+  }).join('');
+}
+function searchReci(field){
+  const q=($(field+'-search').value||'').toLowerCase();
+  const chosen = field==='to'?composeTo:composeCc;
+  const other  = field==='to'?composeCc:composeTo;
+  const cands=state.membres.filter(m=>m.id!==M.id && !chosen.includes(m.id) && !other.includes(m.id));
+  const list=cands.filter(m=>m.nom.toLowerCase().includes(q)||(m.email||'').toLowerCase().includes(q));
+  const box=$(field+'-results');
+  if(!state.membres.filter(m=>m.id!==M.id).length){
+    box.innerHTML=`<div class="reci-item" style="cursor:default"><div class="ri"><b>No members yet</b><span>Create an access in “Members”.</span></div></div>`;
+    box.style.display='block'; return;
+  }
+  if(!list.length){ box.style.display='none'; return; }
+  box.innerHTML=list.map(m=>`<div class="reci-item" onclick="addReci('${field}','${m.id}')">
+    <div class="av" ${avStyle(m.nom)}>${esc(m.ini)}</div>
+    <div class="ri"><b>${esc(m.nom)}</b><span>${esc(m.email)}</span></div>
+    <span class="reci-badge">${esc((m.niveau||'').toUpperCase())}</span></div>`).join('');
+  box.style.display='block';
+}
+function addReci(field,id){
+  if(field==='to'){ if(!composeTo.includes(id)) composeTo.push(id); }
+  else { if(!composeCc.includes(id)) composeCc.push(id); }
+  $(field+'-search').value=''; $(field+'-results').style.display='none';
+  renderReciChips(field); $(field+'-search').focus();
+}
+function removeReci(field,id){
+  if(field==='to') composeTo=composeTo.filter(x=>x!==id);
+  else composeCc=composeCc.filter(x=>x!==id);
+  renderReciChips(field);
+}
+
+/* ============ ACTIONS ============ */
+/* ---- Rôles & permissions ---- */
+function renderRoles(){
+  $('roles-grid').innerHTML = Object.keys(state.roles).map(r=>{
+    const set=state.roles[r];
+    const rows=state.permsCatalog.map(p=>{
+      const on=set.includes(p.k);
+      return `<label class="perm ${on?'on':''}" onclick="togglePerm('${r}','${p.k}',this)"><span class="sw"></span> ${esc(p.label)}</label>`;
+    }).join('');
+    const rico = r==='Admin' ? IC.shield : _svg('<circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/>');
+    return `<div class="role-card"><div class="rh"><h4 style="display:flex;align-items:center;gap:7px">${rico} ${r}</h4><span class="cnt">${set.length} permission${set.length>1?'s':''}</span></div>${rows}</div>`;
+  }).join('');
+}
+function togglePerm(role,k,el){
+  const set=state.roles[role], i=set.indexOf(k);
+  if(i>=0) set.splice(i,1); else set.push(k);
+  el.classList.toggle('on');
+  el.parentElement.parentElement.querySelector('.cnt').textContent = set.length+' permission'+(set.length>1?'s':'');
+  addLog('roles',role+' role — '+state.permsCatalog.find(p=>p.k===k).label+(i>=0?' removed':' added'));
+}
+function mbPerms(){
+  const niv=$('mb-niveau').value, set=state.roles[niv]||[];
+  $('mb-perms').innerHTML = state.permsCatalog.map(p=>{
+    const on=set.includes(p.k);
+    return `<div class="${on?'yes':'no'}">${on?'✔':'✘'} ${esc(p.label)}</div>`;
+  }).join('');
+}
+
+/* ---- Créer / Modifier / Voir un accès ---- */
+function ouvrirMembre(i, ro){
+  state.editIdx = i;
+  const neuf = i===-1;
+  const m = neuf ? {nom:'',email:'',org:'',role:'',niveau:'User',statut:'Pending'} : state.membres[i];
+  $('mb-title').textContent = neuf?'Create access':(ro?'Access details':'Edit access');
+  $('mb-email').value=m.email; $('mb-nom').value=m.nom; $('mb-org').value=m.org; $('mb-role').value=m.role;
+  $('mb-niveau').value=m.niveau; $('mb-statut').value = m.statut==='pending'?'Pending':m.statut;
+  $('mb-duration').value='30';
+  $('mb-exp-hint').textContent = (!neuf && m.expires) ? ('Current: expires '+m.expires+'. Change to reset.') : '';
+  if(neuf) mbExpHint();
+  ['mb-email','mb-nom','mb-org','mb-role','mb-niveau','mb-statut','mb-duration'].forEach(id=>$(id).disabled=!!ro);
+  $('mb-save').style.display = ro?'none':'';
+  $('mb-del').style.display  = (ro||neuf)?'none':'flex';
+  $('mb-save').textContent = neuf?'Create access':'Save';
+  mbPerms(); modal('m-membre');
+}
+function fmtDateShort(dt){ return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+function expiryFromDays(days){ if(!days) return ''; return fmtDateShort(new Date(Date.now()+days*86400000)); }
+function mbExpHint(){ const days=parseInt($('mb-duration').value,10); $('mb-exp-hint').textContent = days? ('Access will expire on '+expiryFromDays(days)+'.') : 'Access never expires.'; }
+function validatePass(p){
+  if(p.length<12) return 'Password must be at least 12 characters.';
+  if(!/[A-Z]/.test(p)) return 'Password must contain an uppercase letter.';
+  if(!/[^A-Za-z0-9]/.test(p)) return 'Password must contain a symbol.';
+  return '';
+}
+function detectDevice(){
+  const ua=navigator.userAgent||'';
+  let br='Browser'; if(/Edg\//.test(ua))br='Edge'; else if(/OPR\//.test(ua))br='Opera'; else if(/Chrome\//.test(ua))br='Chrome'; else if(/Firefox\//.test(ua))br='Firefox'; else if(/Safari\//.test(ua))br='Safari';
+  let os='device'; if(/Windows/.test(ua))os='Windows'; else if(/Mac OS/.test(ua))os='macOS'; else if(/Android/.test(ua))os='Android'; else if(/iPhone|iPad/.test(ua))os='iOS'; else if(/Linux/.test(ua))os='Linux';
+  return br+' · '+os;
+}
+function forgotPassword(){
+  const email=$('fp-email').value.trim();
+  if(!email){toast('Enter your email.');return;}
+  $('fp-email').value=''; fermer('m-forgot');
+  toast('If an account exists for '+email+', a reset link has been sent.');
+}
+function askDeleteMember(i){ const m=state.membres[i]; if(!m)return; askConfirm('Delete member','Permanently delete '+m.nom+'? Their account, messages, uploaded documents and activity will be erased. This cannot be undone.','Delete',()=>supprimerMembre(i)); }
+async function sauverMembre(){
+  const email=$('mb-email').value.trim(); if(!email){toast('Enter an email.');return;}
+  const nom=$('mb-nom').value.trim()||email.split('@')[0];
+  const ini=initialsOf(nom)||email.slice(0,2).toUpperCase();
+  const statutSel=$('mb-statut').value; // Active / Pending / Suspended
+  const status = statutSel==='Active'?'active':statutSel==='Suspended'?'suspended':'pending';
+  const level = $('mb-niveau').value.toLowerCase(); // admin / user
+  const days=parseInt($('mb-duration').value,10);
+  const expires_at = days ? new Date(Date.now()+days*86400000).toISOString() : null;
+  const org=$('mb-org').value.trim(), role_title=$('mb-role').value.trim();
+
+  if(state.editIdx===-1){
+    if(!activeRoom()){ toast('Create or select a data room first.'); return; }
+    const out = await inviteMember({ email, full_name:nom, initials:ini, org, role_title, level, expires_at, room_id:activeRoom() });
+    if(!out) return; // toast already shown (invite function needed)
+    addLog('invite', nom+' ('+level+')');
+    await loadMembers(); renderMembres(); fermer('m-membre');
+    askConfirm('Access created', 'Temporary password for '+email+':  '+out.tempPassword+'   — share it securely. They can change it after signing in.', 'Done', ()=>{});
+  }else{
+    const m=state.membres[state.editIdx];
+    const r=await sb.from('profiles').update({ full_name:nom, initials:ini, org:org||null, role_title:role_title||null, level, status, expires_at }).eq('id', m.id);
+    if(r.error){ toast('Update failed: '+r.error.message); return; }
+    addLog('roles','Access updated — '+nom);
+    await loadMembers(); renderMembres(); fermer('m-membre');
+    toast('Access updated.');
+  }
+}
+/* ---- Invitation link (member sets their own password) ---- */
+function openInvite(i){
+  state.inviteIdx=i; const m=state.membres[i];
+  $('inv-email').value=m.email; $('inv-pass').value=''; $('inv-pass2').value='';
+  $('app').style.display='none'; $('login').style.display='none'; $('invite').style.display='grid';
+  window.scrollTo(0,0);
+}
+function acceptInvite(){
+  const p1=$('inv-pass').value, p2=$('inv-pass2').value;
+  const err=validatePass(p1); if(err){toast(err);return;}
+  if(p1!==p2){toast('Passwords do not match.');return;}
+  const m=state.membres[state.inviteIdx]; m.pass=p1; m.statut='Active';
+  addLog('login','Account activated — '+m.nom);
+  $('invite').style.display='none'; $('login').style.display='grid';
+  renderMembres();
+  toast('Account activated for '+m.email+'. You can now sign in.');
+}
+async function supprimerMembre(i){
+  const m=state.membres[i]; if(!m)return;
+  if(m.niveau==='Admin' && state.membres.filter(x=>x.niveau==='Admin').length<=1){toast('Not allowed: at least one Admin is required.');return;}
+  toast('Deleting…');
+  // Full deletion: account + files + messages + documents + logs (server-side, admin only).
+  const { data:{session} } = await sb.auth.getSession();
+  let out={};
+  try{
+    const res=await fetch(SB_URL+'/functions/v1/delete-member',{
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body: JSON.stringify({ id:m.id }),
+    });
+    out=await res.json().catch(()=>({}));
+    if(!res.ok){ toast(out.error || 'Delete failed. Is the delete-member function deployed?'); return; }
+  }catch(e){ toast('Delete function not reachable yet.'); return; }
+  addLog('roles','Member deleted — '+m.nom);
+  await loadMembers(); await loadConvos(); await loadDocs(); renderMembres(); renderInbox();
+  toast(m.nom+' deleted permanently.');
+}
+function supprimerMembreModal(){ const i=state.editIdx; fermer('m-membre'); askDeleteMember(i); }
+let composeAtt=[];
+function addComposeFile(){
+  const inp=$('msg-file'); if(!inp||!inp.files)return;
+  [...inp.files].forEach(f=>composeAtt.push({name:f.name,size:fmtSize(f.size),url:URL.createObjectURL(f),file:f}));
+  inp.value=''; $('msg-att').innerHTML=composeAtt.map((a,i)=>attChip(a,i)).join('');
+}
+async function envoyer(){
+  if(!composeTo.length){toast('Add at least one recipient.');return;}
+  const subj=$('msg-subj').value.trim()||'(no subject)', body=$('msg-body').value.trim();
+  if(!body && !composeAtt.length){toast('Write a message or attach a file.');return;}
+  toast('Sending…');
+  const atts=await buildAtts(composeAtt);
+  // Primary recipient = first "To"; the rest of To + all Cc go into cc_ids.
+  const primary=composeTo[0];
+  const cc=[...composeTo.slice(1), ...composeCc].filter((v,i,a)=>a.indexOf(v)===i && v!==primary);
+  const row={ sender_id:M.id, recipient_id:primary, cc_ids:cc, subject:subj, body:body||'(attachment)', attachments:atts, is_draft:false, read_by:[], trashed_by:[], purged_by:[], room_id:activeRoom() };
+  let r;
+  if(composeDraftId){ r=await sb.from('messages').update(row).eq('id',composeDraftId); }
+  else { r=await sb.from('messages').insert(row); }
+  if(r.error){toast('Send failed: '+r.error.message);return;}
+  addLog('msg', nameOf(primary)+(cc.length?(' +'+cc.length+' cc'):''));
+  composeDraftId=null; composeAtt=[]; replyAtt=[];
+  await loadMessages(); state.folder='sent'; state.openMsg=null; renderInbox();
+  fermer('m-msg'); voir('inbox',qNav(1)); toast('Message sent.');
+}
+async function saveDraft(){
+  const subj=$('msg-subj').value.trim(), body=$('msg-body').value.trim();
+  if(!composeTo.length && !composeCc.length && !subj && !body && !composeAtt.length){ fermer('m-msg'); return; }
+  toast('Saving…');
+  const atts=await buildAtts(composeAtt);
+  const primary=composeTo[0]||null;
+  const cc=[...composeTo.slice(1), ...composeCc].filter((v,i,a)=>a.indexOf(v)===i && v!==primary);
+  const row={ sender_id:M.id, recipient_id:primary, cc_ids:cc, subject:subj||'(no subject)', body:body, attachments:atts, is_draft:true, room_id:activeRoom() };
+  let r;
+  if(composeDraftId){ r=await sb.from('messages').update(row).eq('id',composeDraftId); }
+  else { r=await sb.from('messages').insert(row); }
+  if(r.error){toast('Save failed: '+r.error.message);return;}
+  composeDraftId=null; composeAtt=[]; replyAtt=[];
+  await loadMessages(); state.folder='drafts'; state.openMsg=null; renderInbox();
+  fermer('m-msg'); voir('inbox',qNav(1)); toast('Draft saved.');
+}
+function editDraft(id){
+  const m=state.messages.find(x=>x.id===id); if(!m)return;
+  resetCompose();
+  composeDraftId=id;
+  composeTo = m.recipient_id?[m.recipient_id]:[];
+  composeCc = [...(m.cc_ids||[])];
+  $('msg-subj').value = m.subject==='(no subject)'?'':m.subject;
+  $('msg-body').value = m.body||'';
+  // Existing attachments (already uploaded) — keep as stored refs.
+  composeAtt = (m.att||[]).map(a=>({name:a.name,size:a.size,path:a.path}));
+  $('msg-att').innerHTML=composeAtt.map((a,i)=>attChip(a,i)).join('');
+  $('msg-modal-title').textContent='Edit draft';
+  renderReciChips('to'); renderReciChips('cc');
+  modal('m-msg');
+}
+function reply(id,all){
+  const m=state.messages.find(x=>x.id===id); if(!m)return;
+  resetCompose();
+  composeTo=[m.sender_id];
+  if(all){
+    // Reply all: original recipient + all cc, minus me and the sender.
+    const extra=[m.recipient_id, ...(m.cc_ids||[])].filter(x=>x && x!==M.id && x!==m.sender_id);
+    composeCc=[...new Set(extra)];
+  }
+  $('msg-subj').value = (/^re:/i.test(m.subject)?'':'Re: ')+m.subject;
+  $('msg-body').value = '\n\n———\nOn '+m.time+', '+nameOf(m.sender_id)+' wrote:\n'+(m.body||'');
+  $('msg-modal-title').textContent = all?'Reply all':'Reply';
+  renderReciChips('to'); renderReciChips('cc');
+  modal('m-msg');
+  const b=$('msg-body'); b.focus(); b.setSelectionRange(0,0);
+}
+function forward(id){
+  const m=state.messages.find(x=>x.id===id); if(!m)return;
+  resetCompose();
+  $('msg-subj').value = (/^fwd:/i.test(m.subject)?'':'Fwd: ')+m.subject;
+  $('msg-body').value = '\n\n——— Forwarded message ———\nFrom: '+nameOf(m.sender_id)+'\nSubject: '+m.subject+'\n\n'+(m.body||'');
+  // Carry the original attachments forward (already stored).
+  composeAtt = (m.att||[]).map(a=>({name:a.name,size:a.size,path:a.path}));
+  $('msg-att').innerHTML=composeAtt.map((a,i)=>attChip(a,i)).join('');
+  $('msg-modal-title').textContent='Forward';
+  modal('m-msg'); searchReci('to');
+  const b=$('msg-body'); b.focus(); b.setSelectionRange(0,0);
+}
+let upFile=null;
+function upFileChosen(){
+  const inp=$('up-file'); if(!inp.files||!inp.files[0])return;
+  upFile=inp.files[0];
+  $('up-drop-txt').textContent = upFile.name+' · '+fmtSize(upFile.size);
+  $('up-drop').classList.add('has');
+  if(!$('up-nom').value.trim()) $('up-nom').value=upFile.name;
+}
+async function ajouterDoc(){
+  let nom=$('up-nom').value.trim()||(upFile&&upFile.name);
+  if(!nom){toast('Choose a file or enter a name.');return;}
+  if(!upFile){toast('Choose a file.');return;}
+  const type = nom.match(/\.(xlsx?|csv)$/i)?'xls':nom.match(/\.docx?$/i)?'doc':'pdf';
+  const path = M.id+'/'+Date.now()+'_'+nom.replace(/[^\w.\-]+/g,'_');
+  toast('Uploading…');
+  const up = await sb.storage.from('documents').upload(path, upFile, { contentType: upFile.type || 'application/octet-stream', upsert:false });
+  if(up.error){ toast('Upload failed: '+up.error.message); return; }
+  const ins = await sb.from('documents').insert({ name:nom, storage_path:path, type, uploaded_by:M.id, visible:$('up-pub').checked, sign_status:$('up-sign').checked?'todo':'none', room_id:activeRoom() });
+  if(ins.error){ toast('Save failed: '+ins.error.message); return; }
+  addLog('upload',nom);
+  $('up-nom').value='';$('up-sign').checked=true;$('up-pub').checked=true;
+  upFile=null;$('up-file').value='';$('up-drop-txt').textContent='Choose a file…';$('up-drop').classList.remove('has');
+  fermer('m-upload');
+  await loadDocs(); renderRoom();
+  toast('Document added.');
+}
+
+/* ---- Lecteur + signature ---- */
+async function ouvrirDoc(id){
+  const d=state.docs.find(x=>x.id===id); state.openDoc=d;
+  $('doc-title').textContent=d.name;
+  const page=$('doc-page');
+  page.style.padding='34px'; page.innerHTML='<p class="muted">Loading…</p>';
+  let url='', errMsg='';
+  const ext=(d.name.split('.').pop()||'').toLowerCase();
+  const isImg = /^(png|jpe?g|gif|webp|bmp|svg)$/.test(ext);
+  const isPdf = ext==='pdf';
+  // Revoke any blob URL from a previous open (avoids memory leaks).
+  if(d._blobUrl){ try{URL.revokeObjectURL(d._blobUrl);}catch(e){} d._blobUrl=''; }
+  if(d.storage_path){
+    try{
+      // Download the file as a Blob and render it locally — reliable for both
+      // admins and members, and immune to content-type / header issues that
+      // broke inline PDF and image preview with signed URLs.
+      const dl=await sb.storage.from('documents').download(d.storage_path);
+      if(dl.error){ errMsg=dl.error.message; }
+      else if(dl.data){
+        const mime = isPdf ? 'application/pdf'
+          : isImg ? ('image/'+(ext==='jpg'?'jpeg':ext==='svg'?'svg+xml':ext))
+          : (dl.data.type||'application/octet-stream');
+        const blob = (dl.data instanceof Blob) ? new Blob([dl.data],{type:mime}) : dl.data;
+        url = URL.createObjectURL(blob); d._blobUrl=url;
+      } else { errMsg='No data returned from storage.'; }
+    }catch(e){ errMsg=String(e&&e.message||e); }
+  } else { errMsg='This document has no stored file.'; }
+  d.url=url;
+  if(url && isImg){
+    page.style.padding='0';
+    page.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:contain;background:#fff">`;
+  } else if(url && isPdf){
+    page.style.padding='0';
+    page.innerHTML=`<object data="${url}#toolbar=0&navpanes=0" type="application/pdf" style="width:100%;height:100%;border:0;background:#fff"><iframe src="${url}" style="width:100%;height:100%;border:0"></iframe></object>`;
+  } else if(url){
+    // Office files (Word/Excel/PowerPoint) can't render inside a browser without a converter.
+    page.style.padding='34px';
+    page.innerHTML=`<div style="max-width:440px;margin:24px auto;text-align:center">
+      <div style="font-size:15px;font-weight:600;margin-bottom:8px">${esc(d.name)}</div>
+      <p class="muted" style="line-height:1.7">Inline preview isn't available for this file type. Word, Excel and PowerPoint files can only be viewed after converting them to PDF.</p>
+      <p class="muted" style="line-height:1.7;margin-top:10px">Tip: upload documents as <b>PDF</b> (or images) so members can read them directly in the data room without downloading.</p>
+    </div>`;
+  } else {
+    page.style.padding='34px';
+    page.innerHTML=`<div style="max-width:440px;margin:24px auto;text-align:center">
+      <div style="font-size:15px;font-weight:600;margin-bottom:8px">${esc(d.name)}</div>
+      <p class="muted" style="line-height:1.7">This document couldn't be opened.${errMsg?' <br><span style="opacity:.7;font-size:12px">('+esc(errMsg)+')</span>':''}</p>
+    </div>`;
+  }
+  const isSigned = d.sign==='signed';
+  $('stamp').style.display = isSigned?'block':'none';
+  $('stamp-name').textContent = isSigned?('by '+(d.signer||M.nom)):'';
+  // Filigrane : visible seulement une fois signé
+  if(isSigned){ $('watermark').style.display='grid'; $('wm').innerHTML='SIGNED<br>'+esc((d.signer||M.nom).toUpperCase()); }
+  else { $('watermark').style.display='none'; }
+  // Preuve de signature
+  if(isSigned){ $('sign-proof').style.display='block'; $('sign-proof').innerHTML='<b>✔ Signed</b> by '+esc(d.signer||M.nom)+' · '+esc(d.signedAt||'')+' · Ref: <span style="font-family:monospace">'+esc(d.signId||'')+'</span>'; }
+  else { $('sign-proof').style.display='none'; }
+  $('doc-sign-btn').style.display = d.sign==='todo' ? 'inline-block':'none';
+  $('doc-send-btn').style.display = isSigned ? 'none':'inline-block';
+  $('sign-zone').style.display='none';
+  if(!isSigned){ addLog('view',d.name); d.view='Viewed just now'; renderRoom(); }
+  modal('m-doc');
+}
+function askConfirm(title,text,okLabel,cb){ $('confirm-title').textContent=title; $('confirm-text').textContent=text; $('confirm-ok').textContent=okLabel||'Confirm'; $('confirm-ok').onclick=()=>{fermer('m-confirm');cb();}; modal('m-confirm'); }
+async function supprimerDoc(id){
+  const d=state.docs.find(x=>x.id===id); if(!d)return;
+  if(d.storage_path){ try{ await sb.storage.from('documents').remove([d.storage_path]); }catch(e){} }
+  const r=await sb.from('documents').delete().eq('id',id); if(r.error){toast('Delete failed.');return;}
+  addLog('upload','Document deleted — '+d.name);
+  await loadDocs(); renderRoom(); toast('"'+d.name+'" deleted.');
+}
+function askDeleteDoc(id){ const d=state.docs.find(x=>x.id===id); if(!d)return; askConfirm('Delete document','Delete "'+d.name+'"? This cannot be undone.','Delete',()=>supprimerDoc(id)); }
+function supprimerDocOuvert(){ const d=state.openDoc; if(!d)return; askConfirm('Delete document','Delete "'+d.name+'"? This cannot be undone.','Delete',()=>{fermer('m-doc');supprimerDoc(d.id);}); }
+function deleteRoom(){
+  if(($('danger-confirm').value||'').trim().toUpperCase()!=='CLOSE DATA ROOM'){ toast('Type CLOSE DATA ROOM to confirm.'); return; }
+  state.docs=[]; state.messages=[]; state.log=[]; state.openMsg=null;
+  state.membres=state.membres.filter(m=>m.nom===M.nom);
+  $('danger-confirm').value='';
+  fermer('m-danger'); sortir();
+  toast('Data room closed.');
+}
+function toggleFull(){
+  const m=$('doc-modal'), on=m.classList.toggle('full');
+  $('full-btn').innerHTML = on
+    ? '<svg class="ic" viewBox="0 0 24 24"><path d="M9 4v5H4"/><path d="M15 20v-5h5"/><path d="M9 9 3 3"/><path d="M15 15l6 6"/></svg>'
+    : '<svg class="ic" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
+}
+function openSendSign(){
+  const d=state.openDoc; if(!d)return;
+  $('ss-doc').textContent=d.name; $('ss-msg').value='';
+  $('ss-to').innerHTML = state.membres.filter(m=>m.nom!==M.nom).map(m=>`<option value="${esc(m.nom)}">${esc(m.nom)} — ${esc(m.email)}</option>`).join('');
+  modal('m-sendsign');
+}
+async function sendForSignature(){
+  const to=$('ss-to').value; if(!to){toast('Select a recipient.');return;}
+  const d=state.openDoc; const mem=state.membres.find(m=>m.nom===to); if(!mem){toast('Recipient not found.');return;}
+  const r1=await sb.from('documents').update({sign_status:'todo', sign_to:mem.id}).eq('id',d.id);
+  if(r1.error){ toast('Failed: '+r1.error.message); return; }
+  const txt=($('ss-msg').value.trim()||'Please review and sign this document.')+'\n\nDocument: '+d.name;
+  await sb.from('messages').insert({sender_id:M.id, recipient_id:mem.id, subject:'Signature request', body:txt, room_id:activeRoom()});
+  addLog('sign','Signature requested — '+d.name+' — '+to);
+  await loadDocs(); await loadConvos(); renderRoom(); renderInbox();
+  fermer('m-sendsign'); fermer('m-doc');
+  toast('"'+d.name+'" sent to '+to+' for signature.');
+}
+async function signAction(){
+  const z=$('sign-zone');
+  if(z.style.display==='none'){ z.style.display='block'; $('sign-type').textContent=M.nom; setTimeout(setupCanvas,50); z.scrollIntoView({behavior:'smooth',block:'nearest'}); $('doc-sign-btn').innerHTML=IC.check+' Confirm signature'; return; }
+  if(!$('sign-consent').checked){toast('Check the consent box to sign.');return;}
+  const d=state.openDoc; d.sign='signed'; d.signer=M.nom;
+  d.signedAt=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  d.signId=Array.from({length:8},()=>Math.floor(Math.random()*16).toString(16).toUpperCase()).join('');
+  const r=await sb.from('documents').update({sign_status:'signed', signed_by:M.id, signed_at:new Date().toISOString(), sign_ref:d.signId}).eq('id',d.id);
+  if(r.error){ toast('Could not save signature: '+r.error.message); return; }
+  addLog('sign',d.name); renderRoom();
+  $('stamp').style.display='block'; $('stamp-name').textContent='by '+M.nom;
+  $('watermark').style.display='grid'; $('wm').innerHTML='SIGNED<br>'+M.nom.toUpperCase();
+  $('sign-proof').style.display='block'; $('sign-proof').innerHTML='<b>✔ Signed</b> by '+esc(M.nom)+' · '+esc(d.signedAt)+' · Ref: <span style="font-family:monospace">'+esc(d.signId)+'</span>';
+  z.style.display='none'; $('doc-sign-btn').style.display='none'; $('doc-sign-btn').innerHTML=IC.edit+' Sign electronically';
+  $('sign-consent').checked=false;
+  toast('Document signed — notification sent to the data room mailbox.');
+}
+function signTab(t,el){document.querySelectorAll('.sign-tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');$('sign-draw').style.display=t==='draw'?'block':'none';$('sign-type').style.display=t==='type'?'block':'none';}
+/* canvas signature */
+let ctx,drawing=false;
+function setupCanvas(){const c=$('sign-canvas');if(!c)return;const r=c.getBoundingClientRect();c.width=r.width;c.height=r.height;ctx=c.getContext('2d');ctx.strokeStyle='#111';ctx.lineWidth=2.2;ctx.lineCap='round';}
+function pos(e,c){const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return[t.clientX-r.left,t.clientY-r.top];}
+(function(){const c=$('sign-canvas');if(!c)return;
+  const down=e=>{drawing=true;const[x,y]=pos(e,c);ctx.beginPath();ctx.moveTo(x,y);e.preventDefault();};
+  const move=e=>{if(!drawing)return;const[x,y]=pos(e,c);ctx.lineTo(x,y);ctx.stroke();e.preventDefault();};
+  const up=()=>drawing=false;
+  c.addEventListener('mousedown',down);c.addEventListener('mousemove',move);window.addEventListener('mouseup',up);
+  c.addEventListener('touchstart',down);c.addEventListener('touchmove',move);c.addEventListener('touchend',up);
+})();
+function clearCanvas(){if(ctx)ctx.clearRect(0,0,$('sign-canvas').width,$('sign-canvas').height);}
+
+
+/* export the log as CSV */
+function exportCSV(){
+  const rows=[['Member','Action','Document','Date']].concat(state.log.map(l=>[l.who,l.act,l.doc,l.time]));
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='access-log.csv';a.click();
+  toast('↧ Log exported as CSV.');
+}
+
+/* toast */
+let tt;
+function toast(msg){const t=$('toast');t.textContent=String(msg).replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{2705}\u{2714}\u{2716}\u{2049}]/gu,'').replace(/^\s+/,'');t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600);}
+</script>
+</body>
+</html>
