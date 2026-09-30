@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SK Exchange — Data Room</title>
+<title>Skadden</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!--
   ========================================================================
@@ -17,13 +17,13 @@
 -->
 <script>
   const CONFIG = {
-    nom:          "SK Exchange",
+    nom:          "Skadden",
     initiales:    "SK",
     baseline:     "Secure Data Room",
     couleur:      "#EE362B",
     couleurClair: "#F5584E",
     operation:    "",
-    moi:          { nom:"Robert Chaplin", initiales:"RC", role:"Administrator", niveau:"Admin", email:"robert.chaplin@sk-exchange.com" },
+    moi:          { nom:"Robert Chaplin", initiales:"RC", role:"Administrator", niveau:"Admin", email:"robert.chaplin@skadden.com" },
   };
 </script>
 <style>
@@ -379,16 +379,16 @@
 <section id="login">
   <div class="login-hero">
     <svg class="hero-deco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.4"/><path d="M12 16.4v2"/></svg>
-    <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange<small data-base>Secure Data Room</small></div></div>
+    <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>Skadden<small data-base>Secure Data Room</small></div></div>
     <div>
       <h1>A secure environment for professional collaboration.</h1>
       <p>A private workspace for secure communication, document sharing and controlled access.</p>
     </div>
-    <div class="muted" style="font-size:12px">© 2026 · <span data-nom2>SK Exchange</span> · All rights reserved</div>
+    <div class="muted" style="font-size:12px">© 2026 · <span data-nom2>Skadden</span> · All rights reserved</div>
   </div>
   <div class="login-panel">
     <div class="login-card">
-      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange</div></div>
+      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>Skadden</div></div>
       <h2>Sign in to your workspace</h2>
       <div class="sub">Access is restricted to authorized users.</div>
       <form onsubmit="entrer(event)">
@@ -397,7 +397,7 @@
         <button class="btn-primary" type="submit">Sign in</button>
       </form>
       <div class="login-links"><a href="#" onclick="return false">Request access</a><a href="#" onclick="modal('m-forgot');return false">Forgot password?</a></div>
-      <div class="login-note"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Protected access · Secure authentication · v1.9</div>
+      <div class="login-note"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px;margin-right:6px"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Protected access · Secure authentication</div>
     </div>
   </div>
 </section>
@@ -405,16 +405,16 @@
 <!-- ============ INVITATION (lien reçu par email) ============ -->
 <section id="invite" style="display:none">
   <div class="login-hero">
-    <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange<small data-base>Secure Data Room</small></div></div>
+    <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>Skadden<small data-base>Secure Data Room</small></div></div>
     <div>
-      <h1>You've been invited to <span data-nom2>SK Exchange</span>.</h1>
+      <h1>You've been invited to <span data-nom2>Skadden</span>.</h1>
       <p>Your access has been created by the administrator. Your email is already set — just choose a password to activate your account.</p>
     </div>
-    <div class="muted" style="font-size:12px">© 2026 · <span data-nom2>SK Exchange</span> · All rights reserved</div>
+    <div class="muted" style="font-size:12px">© 2026 · <span data-nom2>Skadden</span> · All rights reserved</div>
   </div>
   <div class="login-panel">
     <div class="login-card">
-      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange</div></div>
+      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>Skadden</div></div>
       <h2>Create your password</h2>
       <div class="sub">Activate your account to access the data room.</div>
       <div class="field"><label>Your email (set by the administrator)</label><input id="inv-email" type="email" disabled></div>
@@ -430,14 +430,14 @@
 <div id="app">
   <header class="topbar">
     <div style="display:flex;align-items:center;gap:18px">
-      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>SK Exchange</div></div>
+      <div class="logo"><div class="mark" data-init>SK</div><div class="txt" data-nom>Skadden</div></div>
       <div id="room-switcher" class="room-switcher"></div>
     </div>
     <div class="topbar-right">
       <div class="usermenu">
         <div class="avatar" id="me-av" onclick="toggleUserMenu(event)" title="Account">SK</div>
         <div class="umenu" id="user-menu">
-          <div class="umenu-head"><b id="um-name">Robert Chaplin</b><span id="um-email">robert.chaplin@sk-exchange.com</span></div>
+          <div class="umenu-head"><b id="um-name">Robert Chaplin</b><span id="um-email">robert.chaplin@skadden.com</span></div>
           <button class="umenu-item" onclick="sortir()" style="display:flex;align-items:center;gap:7px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v8"/><path d="M7.5 7a7 7 0 1 0 9 0"/></svg> Sign out</button>
         </div>
       </div>
@@ -929,7 +929,7 @@ const state = {
   currentRoom:null,
   docs:[],
   membres:[
-    {nom:'Robert Chaplin',email:'robert.chaplin@sk-exchange.com',ini:'RC',cls:'pdf',org:'SK Exchange',role:'Founder',niveau:'Admin',conn:'online',statut:'Active'},
+    {nom:'Robert Chaplin',email:'robert.chaplin@skadden.com',ini:'RC',cls:'pdf',org:'Skadden',role:'Administrator',niveau:'Admin',conn:'online',statut:'Active'},
   ],
   messages:[],
   folder:'inbox',
@@ -956,7 +956,7 @@ const state = {
 
 /* ============ APPLIQUE LA CONFIG ============ */
 (function(){
-  document.title = CONFIG.nom + " — Data Room";
+  document.title = "Skadden";
   const r=document.documentElement.style;
   r.setProperty('--orange',CONFIG.couleur); r.setProperty('--orange-clair',CONFIG.couleurClair);
   document.querySelectorAll('[data-init]').forEach(e=>e.textContent=CONFIG.initiales);
