@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!--
   ========================================================================
-  SKADDEN DATA ROOM — APPLICATION (fausses données, tout en mémoire)
+  SK EXCHANGE — PROTOTYPE CLIQUABLE (fausses données, tout en mémoire)
   ------------------------------------------------------------------------
   Objectif : valider le FONCTIONNEMENT avant de coder le vrai back-end.
   Tout est simulé côté navigateur — rien n'est envoyé ni enregistré.
@@ -18,7 +18,7 @@
 <script>
   const CONFIG = {
     nom:          "Skadden",
-    initiales:    "S",
+    initiales:    "SK",
     baseline:     "Secure Data Room",
     couleur:      "#EE362B",
     couleurClair: "#F5584E",
@@ -518,6 +518,16 @@
     <div class="field"><label>Full name</label><input id="mb-nom" type="text" placeholder="First Last"></div>
     <div class="field"><label>Company</label><input id="mb-org" type="text" placeholder="Company name"></div>
     <div class="field"><label>Job title</label><input id="mb-role" type="text" placeholder="e.g. Legal counsel"></div>
+    <div class="field" id="mb-method-wrap"><label>Create access by</label>
+      <select id="mb-method" onchange="mbMethod()">
+        <option value="email">Email invitation (they set their own password)</option>
+        <option value="manual">Set the password myself (no email sent)</option>
+      </select>
+    </div>
+    <div class="field" id="mb-pass-wrap" style="display:none"><label>Password for this member</label>
+      <input id="mb-pass" type="text" placeholder="Minimum 12 characters" autocomplete="off">
+      <p class="muted" style="font-size:11.5px;margin-top:6px">You share these login details with the member yourself — no email is sent.</p>
+    </div>
     <div style="display:flex;gap:12px">
       <div class="field" style="flex:1"><label>Role</label><select id="mb-niveau" onchange="mbPerms()"><option>User</option><option>Admin</option></select></div>
       <div class="field" style="flex:1"><label>Status</label><select id="mb-statut"><option>Active</option><option>Pending</option><option>Suspended</option></select></div>
@@ -1414,11 +1424,15 @@ function ouvrirMembre(i, ro){
   $('mb-exp-hint').textContent = (!neuf && m.expires) ? ('Current: expires '+m.expires+'. Change to reset.') : '';
   if(neuf) mbExpHint();
   ['mb-email','mb-nom','mb-org','mb-role','mb-niveau','mb-statut','mb-duration'].forEach(id=>$(id).disabled=!!ro);
+  // "Create access by" choice only appears when creating a new member.
+  $('mb-method-wrap').style.display = neuf ? 'block' : 'none';
+  $('mb-method').value='email'; $('mb-pass').value=''; $('mb-pass-wrap').style.display='none';
   $('mb-save').style.display = ro?'none':'';
   $('mb-del').style.display  = (ro||neuf)?'none':'flex';
   $('mb-save').textContent = neuf?'Create access':'Save';
   mbPerms(); modal('m-membre');
 }
+function mbMethod(){ $('mb-pass-wrap').style.display = $('mb-method').value==='manual' ? 'block' : 'none'; }
 function fmtDateShort(dt){ return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
 function expiryFromDays(days){ if(!days) return ''; return fmtDateShort(new Date(Date.now()+days*86400000)); }
 function mbExpHint(){ const days=parseInt($('mb-duration').value,10); $('mb-exp-hint').textContent = days? ('Access will expire on '+expiryFromDays(days)+'.') : 'Access never expires.'; }
@@ -1454,16 +1468,24 @@ async function sauverMembre(){
 
   if(state.editIdx===-1){
     if(!activeRoom()){ toast('Create or select a data room first.'); return; }
-    const out = await inviteMember({ email, full_name:nom, initials:ini, org, role_title, level, expires_at, room_id:activeRoom() });
+    const method = $('mb-method').value;
+    let password = null;
+    if(method==='manual'){
+      password = $('mb-pass').value;
+      const err=validatePass(password); if(err){ toast(err); return; }
+    }
+    const out = await inviteMember({ email, full_name:nom, initials:ini, org, role_title, level, expires_at, room_id:activeRoom(), password });
     if(!out) return; // toast already shown (invite function needed)
     addLog('invite', nom+' ('+level+')');
     await loadMembers(); renderMembres(); fermer('m-membre');
-    const msg = out.emailed
-      ? 'An invitation email has been sent to '+email+'. They will click the link to choose their password and activate their account.'
-      : (out.invite_link
-          ? 'The account was created but the email could not be sent'+(out.email_error?(' ('+out.email_error+')'):'')+'. Share this activation link with '+email+' directly:\n\n'+out.invite_link
-          : 'Access created for '+email+'.');
-    askConfirm(out.emailed?'Invitation sent':'Invitation link', msg, 'Done', ()=>{});
+    const msg = out.manual
+      ? 'Account created for '+email+'.\n\nLogin: '+email+'\nPassword: '+password+'\n\nShare these details with the member securely. No email was sent.'
+      : out.emailed
+        ? 'An invitation email has been sent to '+email+'. They will click the link to choose their password and activate their account.'
+        : (out.invite_link
+            ? 'The account was created but the email could not be sent'+(out.email_error?(' ('+out.email_error+')'):'')+'. Share this activation link with '+email+' directly:\n\n'+out.invite_link
+            : 'Access created for '+email+'.');
+    askConfirm(out.manual?'Account created':(out.emailed?'Invitation sent':'Invitation link'), msg, 'Done', ()=>{});
   }else{
     const m=state.membres[state.editIdx];
     const r=await sb.from('profiles').update({ full_name:nom, initials:ini, org:org||null, role_title:role_title||null, level, status, expires_at }).eq('id', m.id);
