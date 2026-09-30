@@ -459,7 +459,7 @@
         <div><h2>Data Room</h2><p id="room-sub"></p></div>
         <div style="display:flex;gap:10px" id="room-actions">
           <button class="btn-ghost" id="btn-vue" onclick="toggleVue()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg> Preview as member</button>
-          <button class="btn-orange" onclick="openUpload()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Add document</button>
+          <button class="btn-orange" id="btn-add-doc" onclick="openUpload()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Add document</button>
         </div>
       </div>
       <div class="stats" id="stats"></div>
@@ -666,7 +666,7 @@
       <label class="consent"><input type="checkbox" id="sign-consent"> I confirm I have reviewed this document and agree to sign it electronically.</label>
     </div>
   </div>
-  <div class="modal-f"><button class="act danger" onclick="supprimerDocOuvert()" style="margin-right:auto;width:auto;padding:0 12px;gap:6px;display:inline-flex;align-items:center"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg> Delete</button><button class="btn-ghost" onclick="fermer('m-doc')">Close</button><button class="btn-orange" id="doc-sign-btn" onclick="signAction()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2 2 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Sign electronically</button></div>
+  <div class="modal-f"><button class="act danger" id="doc-del-btn" onclick="supprimerDocOuvert()" style="margin-right:auto;width:auto;padding:0 12px;gap:6px;display:inline-flex;align-items:center"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg> Delete</button><button class="btn-ghost" onclick="fermer('m-doc')">Close</button><button class="btn-orange" id="doc-sign-btn" onclick="signAction()" style="display:inline-flex;align-items:center;gap:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2 2 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Sign electronically</button></div>
 </div></div>
 
 <!-- MODAL SEND FOR SIGNATURE -->
@@ -1001,7 +1001,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const signTag=s=> s==='signed'?'<span class="tag on">Signed</span>' : s==='todo'?'<span class="tag view">To sign</span>' : '<span class="muted">—</span>';
 
 function renderRoom(){
-  const client = state.vue==='client';
+  const client = state.vue==='client' || (M && M.niveau!=='Admin');
   document.getElementById('app').classList.toggle('mode-client',client);
   $('btn-vue').innerHTML = client ? IC.back+' Back to my view' : IC.eye+' Preview as member';
   $('btn-vue').className = client ? 'btn-orange' : 'btn-ghost';
@@ -1315,6 +1315,7 @@ function applyRole(){
   $('nav-members').style.display = admin?'':'none';
   $('nav-journal').style.display = admin?'':'none';
   $('btn-vue').style.display = admin?'':'none';
+  const addBtn=$('btn-add-doc'); if(addBtn) addBtn.style.display = admin?'':'none';
   if(!admin){
     const cur=document.querySelector('.view.active');
     if(cur && (cur.id==='v-membres'||cur.id==='v-journal')) voir('room', document.querySelector('.nav-item'));
@@ -1775,6 +1776,7 @@ async function ouvrirDoc(id){
   if(isSigned){ $('sign-proof').style.display='block'; $('sign-proof').innerHTML=signProofHTML(d); }
   else { $('sign-proof').style.display='none'; }
   $('doc-sign-btn').style.display = d.sign==='todo' ? 'inline-block':'none';
+  const delBtn=$('doc-del-btn'); if(delBtn) delBtn.style.display = (M.niveau==='Admin') ? 'inline-flex':'none';
   $('sign-zone').style.display='none';
   if(!isSigned){ addLog('view',d.name); d.view='Viewed just now'; renderRoom(); }
   modal('m-doc');
